@@ -5,13 +5,22 @@ u CSV importu (`data_ingest.py`), bez duplikace logiky.
 """
 from __future__ import annotations
 
+import time
 from datetime import date, datetime, timedelta
-from typing import Optional
+from typing import Callable, Optional
+
+import requests
 
 import api_tennis_provider as provider
 from data_ingest import PlayerRecord, RawMatch, build_player_ratings
 
-MONTH_CHUNK_DAYS = 30  # appka stahuje po měsíčních oknech, ať appka nenarazí na nezdokumentovaný limit velikosti odpovědi
+# api-tennis.com appce vrací chybu "Maximum date range for odds is 7 days"
+# na cokoliv širší — appka to zjistila živě (appka si dřív myslela, že jde
+# o 30denní okna, appka tenhle limit objevila až při reálném bulk importu).
+# Appka bere 7 jako bezpečnou horní mez pro `date_start`..`date_stop` VČETNĚ
+# obou konců.
+CHUNK_DAYS = 7
+REQUEST_DELAY_SECONDS = 0.3  # appka mezi requesty čeká, ať nenarazí na rate limit při stovkách volání za sebou
 
 
 def fixture_to_raw_match(fixture: dict, surface_by_tournament: dict[int, Optional[str]]) -> Optional[RawMatch]:
@@ -64,25 +73,52 @@ def fixture_to_raw_match(fixture: dict, surface_by_tournament: dict[int, Optiona
     )
 
 
-def fetch_raw_matches(tour: str, date_start: date, date_stop: date) -> list[RawMatch]:
-    """Appka stáhne fixtures po měsíčních oknech (viz MONTH_CHUNK_DAYS)
-    a spáruje je s povrchem přes `get_surface_by_tournament` (appka ho
-    stahuje jednou za celé volání, ne pro každé okno zvlášť)."""
+def fetch_raw_matches(
+    tour: str,
+    date_start: date,
+    date_stop: date,
+    on_progress: Optional[Callable[[date, date, int], None]] = None,
+) -> list[RawMatch]:
+    """Appka stáhne fixtures po 7denních oknech (viz CHUNK_DAYS — api-tennis.com
+    delší rozsah v jednom volání odmítne) a spáruje je s povrchem přes
+    `get_surface_by_tournament` (appka ho stahuje jednou za celé volání,
+    ne pro každé okno zvlášť). `on_progress(chunk_start, chunk_stop,
+    matches_so_far)` appka zavolá po každém okně — u víceletého importu
+    appka udělá stovky requestů, appka chce mít jak appka postupuje."""
     surface_by_tournament = provider.get_surface_by_tournament(tour)
 
     raw_matches: list[RawMatch] = []
     cursor = date_start
     while cursor <= date_stop:
-        chunk_end = min(cursor + timedelta(days=MONTH_CHUNK_DAYS - 1), date_stop)
-        fixtures = provider.get_fixtures(cursor.isoformat(), chunk_end.isoformat(), tour)
+        chunk_end = min(cursor + timedelta(days=CHUNK_DAYS - 1), date_stop)
+        fixtures = _get_fixtures_with_retry(cursor.isoformat(), chunk_end.isoformat(), tour)
         for fixture in fixtures:
             raw_match = fixture_to_raw_match(fixture, surface_by_tournament)
             if raw_match is not None:
                 raw_matches.append(raw_match)
+        if on_progress is not None:
+            on_progress(cursor, chunk_end, len(raw_matches))
+        time.sleep(REQUEST_DELAY_SECONDS)
         cursor = chunk_end + timedelta(days=1)
 
     raw_matches.sort(key=lambda m: m.tourney_date)
     return raw_matches
+
+
+def _get_fixtures_with_retry(date_start: str, date_stop: str, tour: str, max_attempts: int = 4) -> list[dict]:
+    """Appka jeden neúspěšný pokus (síť/rate limit) zkusí zopakovat s
+    exponenciálním čekáním, než celý víceletý import kvůli jednomu
+    zaseknutému oknu spadne."""
+    delay = 2.0
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return provider.get_fixtures(date_start, date_stop, tour)
+        except (requests.RequestException, RuntimeError):
+            if attempt == max_attempts:
+                raise
+            time.sleep(delay)
+            delay *= 2
+    return []
 
 
 def ingest_from_api_tennis(tour: str, date_start: date, date_stop: date, as_of: Optional[date] = None) -> list[PlayerRecord]:
