@@ -22,8 +22,22 @@ from data_ingest import PlayerRecord, RawMatch, build_player_ratings
 CHUNK_DAYS = 7
 REQUEST_DELAY_SECONDS = 0.3  # appka mezi requesty čeká, ať nenarazí na rate limit při stovkách volání za sebou
 
+# api-tennis.com nedává best_of přímo — appka to dřív měla natvrdo
+# `best_of=3` VŽDY, i pro Grand Slamy. Appka to odhalila v backtestu:
+# povrch "tráva" ukázal podezřele vysoký průměr gemů, protože appka do
+# koše "bo3 tráva" počítala i Wimbledonské bo5 zápasy. WTA hraje bo5
+# nikdy (i na Grand Slamech), takže appka bo5 detekuje jen pro ATP
+# podle jména turnaje.
+GRAND_SLAM_NAMES = {"australian open", "roland garros", "french open", "wimbledon", "us open"}
 
-def fixture_to_raw_match(fixture: dict, surface_by_tournament: dict[int, Optional[str]]) -> Optional[RawMatch]:
+
+def _infer_best_of(tour: str, tourney_name: Optional[str]) -> int:
+    if tour == "atp" and tourney_name and tourney_name.strip().lower() in GRAND_SLAM_NAMES:
+        return 5
+    return 3
+
+
+def fixture_to_raw_match(fixture: dict, surface_by_tournament: dict[int, Optional[str]], tour: str) -> Optional[RawMatch]:
     """Appka vrátí None pro zápasy appka nemůže/nemá smysl zpracovat
     (neskončené, bez jasného vítěze, zrušené)."""
     status = fixture.get("event_status")
@@ -60,7 +74,7 @@ def fixture_to_raw_match(fixture: dict, surface_by_tournament: dict[int, Optiona
         tourney_date=tourney_date,
         surface=surface_by_tournament.get(fixture.get("tournament_key")),
         tourney_level=None,  # api-tennis appce nedává úroveň turnaje (Grand Slam/Masters/...) přímo — appka K-faktor zatím jede na defaultu
-        best_of=3,
+        best_of=_infer_best_of(tour, fixture.get("tournament_name")),
         winner_id=str(winner_key),
         winner_name=winner_name,
         loser_id=str(loser_key),
@@ -100,7 +114,7 @@ def fetch_raw_matches(
         chunk_end = min(cursor + timedelta(days=CHUNK_DAYS - 1), date_stop)
         fixtures = _get_fixtures_with_retry(cursor.isoformat(), chunk_end.isoformat(), tour)
         for fixture in fixtures:
-            raw_match = fixture_to_raw_match(fixture, surface_by_tournament)
+            raw_match = fixture_to_raw_match(fixture, surface_by_tournament, tour)
             if raw_match is not None:
                 raw_matches.append(raw_match)
         if on_progress is not None:

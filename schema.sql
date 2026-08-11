@@ -157,5 +157,11 @@ INSERT INTO market_thresholds (market_code, min_confidence, min_matches_played_1
     ('match_winner', 0.62, 10),
     ('total_games',  0.58, 10),
     ('total_aces',   0.58, 10);
--- Výchozí hodnoty jsou POUZE startovní odhad — appka je musí kalibrovat
--- na backtestu, jakmile bude mít vyřešený zdroj historických dat (viz README).
+-- Appka 2026-08-11 spustila walk-forward backtest (scripts/backtest_calibration.py,
+-- 6184 zápasů ATP+WTA) a přeladila appčiny KONSTANTY v market_models.py
+-- (appčiny modely byly předtím výrazně přehnaně sebevědomé — viz docstring
+-- tam) — appčiny pravděpodobnosti appka teď dávají mnohem realističtější
+-- čísla, takže appka tenhle práh 0,58 klidně splní. Appka ale samotné
+-- PRAHY (kde appka řekne "beru/neberu") appka ještě nezkoušela optimalizovat
+-- na přesnost/výtěžnost tiketů — appka to udělá, až appka bude mít
+-- historii appčiných VLASTNÍCH tiketů, ne jen appčiných dílčích predikcí.

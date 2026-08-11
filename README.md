@@ -148,6 +148,52 @@ jinak projevily až na produkci:
   appce vrací `NUMERIC` sloupce (ace rate) jako `decimal.Decimal` —
   appka to sjednotila na hranici DB/výpočtu v `ticket_generation.py`.
 
+## Kalibrace modelů (2026-08-11)
+
+U reálného vygenerovaného tiketu appka ukázala 98% jistotu na trh
+"gemy" u zápasu, kde appčin model výherce dal na TEN SAMÝ zápas jen
+71 % — velký rozpor u stejného zápasu byl signál, že appčiny konstanty
+v `market_models.py` (nikdy nekalibrované, jen hrubý odhad) jsou
+pravděpodobně mimo realitu. Appka to ověřila **walk-forward backtestem**
+(`scripts/backtest_calibration.py`) — appka prošla 6184 skutečných
+zápasů (ATP+WTA, 2025-08 až 2026-08) CHRONOLOGICKY a u každého počítala
+predikci JEN z toho, co appka věděla PŘED zápasem (žádné nakukování
+dopředu), teprve pak appka zápas použila na update ratingu.
+
+**Výsledek appku potvrdil:**
+- **Výherce (Elo)** appka nemusela měnit — Brier score 0,227, appka je
+  v hlavním pásmu 40–70 % rozumně kalibrovaná.
+- **Gemy appka byla skoro dvakrát přehnaně sebevědomá** — appka měla
+  natvrdo rozptyl 4,2 gemu, realita je 6,8–9,0 podle povrchu. Appka
+  taky měla citlivost na Elo gap čtyřikrát vyšší, než appka doopravdy
+  je.
+- **Esa appka byla ještě víc mimo** — appka počítala s Poissonovým
+  rozdělením (rozptyl appka rovná průměru), skutečný rozptyl je 6,7×
+  vyšší.
+
+Appka `market_models.py` přeladila na naměřené hodnoty (viz docstring
+modulu pro přesná čísla) a rovnou to ověřila zpětně na stejných
+backtestových datech: systematická odchylka u gemů klesla z +2,1 na
++0,5 gemu, u es téměř na nulu (+0,004), a pokrytí (kolik skutečných
+výsledků padne do appčina predikovaného intervalu nejistoty) teď sedí
+blízko teoretickému očekávání normálního rozdělení (~75 % v rámci
+±1 směrodatné odchylky, dřív appka reálně netušila, jak moc mimo je).
+Na tom samém reálném tiketu z minula (vsadil appka "pod gemy" u dvou
+zápasů s velkým rozdílem v síle) appka teď dostane 83 % a 69 % jistoty
+— pořád vysoká, ale mnohem realističtější než původních 98 % a 89 %.
+
+Appka cestou taky opravila datovou chybu — `api_tennis_ingest.py`
+appka VŠECHNY zápasy značila jako `best_of=3`, i Grand Slamy (které
+se hrají na bo5), což zkreslilo hlavně povrch tráva (Wimbledon je
+jediný velký grass turnaj a appka ho počítala jako kratší bo3 zápas,
+i když měl reálně víc gemů kvůli bo5 formátu).
+
+Appka **nepřepočítala tenhle konkrétní backtest po opravě** best_of
+detekce — stálo by to appku další hodiny stahování z api-tennis.com.
+Číslo pro povrch TRÁVA v `BASELINE_GAMES` je proto appka odhad
+konzervativnější, než appka syrová naměřená data — až appka příště
+poběží backtest, měla by ho přepočítat na čistá data.
+
 ## Další otevřené věci
 
 - **api-tennis.com nemá bookmaker trh na esa** (stejně jako the-odds-api)
@@ -159,9 +205,14 @@ jinak projevily až na produkci:
   defaultní hodnotě K-faktoru pro všechny turnaje. Vylepšit appka může
   přes `tournament_round`/`tournament_name` heuristiku, zatím appka to
   neřešila.
-- **Prahy jistoty v `market_thresholds`** (0.62 / 0.58 / 0.58) jsou jen
-  startovní odhad — appka je musí kalibrovat na backtestu s reálnými
-  daty (teď už appka na to má zdroj).
+- **Modely appka JE zkalibrovala** (viz nová sekce "Kalibrace modelů"
+  níže) — appka měla `GAMES_STD_DEV`/`GAMES_ELO_GAP_SENSITIVITY`/
+  Poissonův předpoklad na esa výrazně mimo realitu, teď appka je
+  přeladila na měřená čísla. Samotné PRAHY v `market_thresholds`
+  (0.62 / 0.58 / 0.58) appka zatím nechala — appka je teprve musí
+  optimalizovat na přesnost/výtěžnost VLASTNÍCH tiketů (ne jen
+  dílčích predikcí), až appka bude mít historii reálně poslaných
+  tiketů, ne jen backtest jednotlivých zápasů.
 - **`event_date`/`event_time` appka bere jako appka je dostane, bez
   ověřené časové zóny** — appka je zatím ukládá jako appka je dostala
   (nejspíš UTC nebo lokální čas turnaje, appka to needeklarovala od
