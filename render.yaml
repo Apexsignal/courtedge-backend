@@ -1,0 +1,68 @@
+# render.yaml — Blueprint pro nasazení CourtEdge backendu na Render.com
+#
+# CourtEdge má vlastní, plně oddělenou infrastrukturu (žádné sdílení
+# s ApexSignalem na provozní úrovni — samostatný Render účet/service,
+# samostatná DB, samostatný Stripe účet, samostatný Telegram bot).
+#
+# Postup:
+# 1. Vytvoř GitHub repo (apexsignal/courtedge-backend) a nahraj do něj
+#    tenhle repozitář.
+# 2. Na render.com: New + → Blueprint → vyber repozitář. Render tenhle
+#    soubor najde a navrhne web službu i databázi najednou.
+# 3. Render se zeptá na hodnoty proměnných níže (sync: false) — vlož
+#    klíče přímo v Render dashboardu, NIKDY do kódu na GitHubu:
+#      ODDSAPI_KEY        — the-odds-api.com, VLASTNÍ klíč (ne sdílený
+#                            s ApexSignalem), pokrývá živé tenisové kurzy
+#      SECRET_KEY         — podpis přihlašovacích tokenů, vygeneruj:
+#                            python3 -c "import secrets; print(secrets.token_hex(32))"
+#                            NIKDY neměnit po nasazení.
+#      ADMIN_TASK_KEY      — sdílený tajný klíč pro admin/cron endpointy
+#                            (stejný princip jako SECRET_KEY)
+#      TELEGRAM_BOT_TOKEN  — @BotFather, nový bot nesouvisející s ApexSignalem
+#      TELEGRAM_CHAT_ID    — kanál/skupina, kam appka posílá denní tikety
+#      STRIPE_SECRET_KEY   — NOVÝ, samostatný Stripe účet (ne ApexSignal)
+#      STRIPE_WEBHOOK_SECRET
+#      DAILY_TICKETS_USER_ID — ID účtu (users.id v DB), pod který appka
+#                            ukládá automaticky generované denní tikety
+# 4. Po nasazení dostaneš URL typu https://courtedge-backend.onrender.com.
+#
+# Pozn.: Free plán na Renderu "usíná" po ~15 min nečinnosti (cold start
+# ~30-50s na první request). Free Postgres má časové omezení (typicky
+# expiruje po ~90 dnech) — pro produkci bude nakonec potřeba placený plán.
+
+databases:
+  - name: courtedge-db
+    plan: free
+    databaseName: courtedge
+    user: courtedge
+
+services:
+  - type: web
+    name: courtedge-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend_api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.4
+      - key: DATABASE_URL
+        fromDatabase:
+          name: courtedge-db
+          property: connectionString
+      - key: ODDSAPI_KEY
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: ADMIN_TASK_KEY
+        sync: false
+      - key: DAILY_TICKETS_USER_ID
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false

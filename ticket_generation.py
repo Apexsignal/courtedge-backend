@@ -1,0 +1,142 @@
+"""
+ticket_generation.py — appka tady spojuje elo_model + market_models +
+ticket_builder + db do jednoho volání: "z aktuálních nadcházejících
+zápasů postav jeden tiket". Odděleno od backend_api.py, ať appka
+endpointy drží tenké a tuhle logiku jde jednou otestovat izolovaně.
+"""
+from __future__ import annotations
+
+from typing import Optional
+
+import db
+from elo_model import PlayerRating, win_probability
+from market_models import estimate_total_aces, estimate_total_games
+from ticket_builder import (
+    Candidate,
+    MarketThreshold,
+    SafetyContext,
+    build_ticket,
+    passes_safety_filters,
+    rank_candidates,
+)
+
+DEFAULT_ACES_LINE = 20.5  # appka nemá tržní kurz na esa (viz odds_provider.py) — startovní hranice, dokud appka nemá lepší zdroj
+
+
+def _rating_from_row(row: dict, prefix: str) -> PlayerRating:
+    return PlayerRating(
+        player_id=0,
+        elo_overall=float(row[f"{prefix}_elo_overall"]),
+        elo_hard=float(row[f"{prefix}_elo_hard"]),
+        elo_clay=float(row[f"{prefix}_elo_clay"]),
+        elo_grass=float(row[f"{prefix}_elo_grass"]),
+        elo_carpet=float(row[f"{prefix}_elo_carpet"]),
+    )
+
+
+def build_candidates_from_pending_matches() -> tuple[list[Candidate], dict[int, dict]]:
+    """Appka vrátí (kandidáti, match_id -> match metadata) — metadata appka
+    potřebuje pro render/uložení tiketu (jména hráčů, info o turnaji)."""
+    thresholds_raw = db.get_market_thresholds()
+    thresholds = {
+        code: MarketThreshold(
+            market_code=code,
+            min_confidence=float(t["min_confidence"]),
+            min_matches_played_12mo=t["min_matches_played_12mo"],
+        )
+        for code, t in thresholds_raw.items()
+    }
+
+    matches = db.get_pending_matches()
+    candidates: list[Candidate] = []
+    match_meta: dict[int, dict] = {}
+
+    for m in matches:
+        surface = m.get("surface") or "hard"
+        rating_a = _rating_from_row(m, "a")
+        rating_b = _rating_from_row(m, "b")
+        match_meta[m["id"]] = m
+
+        safety_ctx = SafetyContext(
+            match_id=m["id"],
+            player_a_matches_played_12mo=m["a_matches_played_12mo"],
+            player_b_matches_played_12mo=m["b_matches_played_12mo"],
+            player_a_recent_retirements=m["a_recent_retirements"],
+            player_b_recent_retirements=m["b_recent_retirements"],
+        )
+
+        # --- trh 1: výherce zápasu ---
+        odds_winner = {o["selection"]: float(o["odds_decimal"]) for o in db.get_latest_odds(m["id"], "match_winner")}
+        prob_a = win_probability(rating_a, rating_b, surface)
+        for selection, prob in (("player_a", prob_a), ("player_b", 1 - prob_a)):
+            cand = Candidate(
+                match_id=m["id"], market_code="match_winner", selection=selection, line=None,
+                model_probability=prob, market_odds=odds_winner.get(selection),
+            )
+            if passes_safety_filters(cand, safety_ctx, thresholds):
+                candidates.append(cand)
+
+        # --- trh 2: over/under gemů ---
+        games_est = estimate_total_games(
+            rating_a.blended_elo(surface), rating_b.blended_elo(surface), surface, m.get("best_of") or 3,
+        )
+        odds_games: dict[tuple[str, float], float] = {}
+        for o in db.get_latest_odds(m["id"], "total_games"):
+            if o.get("line") is not None:
+                odds_games[(o["selection"], float(o["line"]))] = float(o["odds_decimal"])
+        for line in {ln for (_sel, ln) in odds_games.keys()}:
+            for selection, prob_fn in (("over", games_est.prob_over), ("under", games_est.prob_under)):
+                cand = Candidate(
+                    match_id=m["id"], market_code="total_games", selection=selection, line=line,
+                    model_probability=prob_fn(line), market_odds=odds_games.get((selection, line)),
+                )
+                if passes_safety_filters(cand, safety_ctx, thresholds):
+                    candidates.append(cand)
+
+        # --- trh 3: over/under es ---
+        # the-odds-api nemá bookmaker trh na esa (viz odds_provider.py) —
+        # appka pravděpodobnost i tak spočítá, ale market_odds zůstane
+        # None, dokud appka nenajde zdroj kurzu → ticket_builder.build_ticket
+        # takový kandidát nepoužije pro sestavení tiketu (potřebuje odds).
+        aces_est = estimate_total_aces(
+            m.get(f"a_ace_rate_{surface}"), m.get(f"b_ace_rate_{surface}"), games_est,
+        )
+        for selection, prob_fn in (("over", aces_est.prob_over), ("under", aces_est.prob_under)):
+            cand = Candidate(
+                match_id=m["id"], market_code="total_aces", selection=selection, line=DEFAULT_ACES_LINE,
+                model_probability=prob_fn(DEFAULT_ACES_LINE), market_odds=None,
+            )
+            if passes_safety_filters(cand, safety_ctx, thresholds):
+                candidates.append(cand)
+
+    return candidates, match_meta
+
+
+def generate_daily_ticket(user_id: Optional[int] = None) -> Optional[dict]:
+    """Appka vrátí uložený tiket (s legy obohacenými o jména hráčů pro
+    render/odeslání), nebo None, pokud appka nenašla platnou kombinaci
+    2 legů v pásmu kurzu 2,00–3,00 (viz ticket_builder.py)."""
+    candidates, match_meta = build_candidates_from_pending_matches()
+    ranked = rank_candidates(candidates)
+    built = build_ticket(ranked)
+    if built is None:
+        return None
+
+    legs_for_db = []
+    legs_for_render = []
+    for leg in built.legs:
+        m = match_meta[leg.match_id]
+        base = {
+            "match_id": leg.match_id, "market_code": leg.market_code, "selection": leg.selection,
+            "line": leg.line, "model_probability": leg.model_probability, "market_odds": leg.market_odds,
+        }
+        legs_for_db.append(base)
+        legs_for_render.append({
+            **base,
+            "player_a": m["player_a_name"], "player_b": m["player_b_name"],
+            "tourney_name": m.get("tourney_name"), "start_time": m.get("start_time"),
+        })
+
+    ticket = db.save_ticket(user_id, built.total_odds, legs_for_db)
+    ticket["legs"] = legs_for_render
+    return ticket
