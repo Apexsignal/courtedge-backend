@@ -148,6 +148,25 @@ def upsert_player(record) -> None:
         )
 
 
+def ensure_player_stub(external_id: str, tour: str, full_name: str) -> dict:
+    """Appka zajistí, že hráč v DB existuje, i když pro něj ještě nemá
+    spočítaný Elo/ace-rate (např. nový/qualifier hráč z nadcházejícího
+    zápasu, co appka ještě v historickém importu neviděla) — appka mu
+    dá výchozí rating 1500 (viz schema.sql defaults) a ten se doplní,
+    až na něj appka příště spustí `data_ingest`/`api_tennis_ingest`."""
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            INSERT INTO players (external_id, tour, full_name)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (external_id, tour) DO UPDATE SET full_name = EXCLUDED.full_name
+            RETURNING *
+            """,
+            (external_id, tour, full_name),
+        )
+        return dict(cur.fetchone())
+
+
 def get_player_by_external_id(external_id: str, tour: str) -> Optional[dict]:
     with get_cursor() as cur:
         cur.execute("SELECT * FROM players WHERE external_id = %s AND tour = %s", (external_id, tour))
@@ -196,6 +215,13 @@ def upsert_upcoming_match(match: dict) -> dict:
             match,
         )
         return dict(cur.fetchone())
+
+
+def get_match_by_external_id(external_id: str, tour: str) -> Optional[dict]:
+    with get_cursor() as cur:
+        cur.execute("SELECT * FROM matches WHERE external_id = %s AND tour = %s", (external_id, tour))
+        row = cur.fetchone()
+        return dict(row) if row else None
 
 
 def get_pending_matches() -> list[dict]:

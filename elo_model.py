@@ -91,7 +91,7 @@ def _k_factor(tourney_level: Optional[str]) -> int:
 def update_ratings(
     winner: PlayerRating,
     loser: PlayerRating,
-    surface: str,
+    surface: Optional[str],
     tourney_level: Optional[str] = None,
 ) -> None:
     """
@@ -143,7 +143,7 @@ class EloEngine:
         self,
         winner_external_id: str,
         loser_external_id: str,
-        surface: str,
+        surface: Optional[str],
         tourney_level: Optional[str] = None,
     ) -> None:
         winner = self.get_or_create(winner_external_id)

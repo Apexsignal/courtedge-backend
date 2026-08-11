@@ -11,8 +11,13 @@
 #    soubor najde a navrhne web službu i databázi najednou.
 # 3. Render se zeptá na hodnoty proměnných níže (sync: false) — vlož
 #    klíče přímo v Render dashboardu, NIKDY do kódu na GitHubu:
+#      APITENNIS_KEY       — api-tennis.com, PRIMÁRNÍ zdroj (historická
+#                            data pro Elo/ace-rate, nadcházející zápasy,
+#                            kurzy OD ~12 bookmakerů i settlement — vše
+#                            pod jedním providerem, viz README)
 #      ODDSAPI_KEY        — the-odds-api.com, VLASTNÍ klíč (ne sdílený
-#                            s ApexSignalem), pokrývá živé tenisové kurzy
+#                            s ApexSignalem), appka ho nechává jako
+#                            záložní/druhý zdroj kurzů (odds_provider.py)
 #      SECRET_KEY         — podpis přihlašovacích tokenů, vygeneruj:
 #                            python3 -c "import secrets; print(secrets.token_hex(32))"
 #                            NIKDY neměnit po nasazení.
@@ -50,6 +55,8 @@ services:
         fromDatabase:
           name: courtedge-db
           property: connectionString
+      - key: APITENNIS_KEY
+        sync: false
       - key: ODDSAPI_KEY
         sync: false
       - key: SECRET_KEY

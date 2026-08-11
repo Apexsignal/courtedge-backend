@@ -198,8 +198,12 @@ def build_player_ratings(matches: list[RawMatch], tour: str, as_of: Optional[dat
         retired = m.is_retirement
         winner_acc.record_match(m, is_winner=True, retired=False)
         loser_acc.record_match(m, is_winner=False, retired=retired)
-        if m.surface:
-            engine.process_match(m.winner_id, m.loser_id, m.surface, m.tourney_level)
+        # Appka aktualizuje Elo VŽDY, i když appka nezná povrch (chybějící
+        # `surface` appka dřív používala jako podmínku pro celé volání, což
+        # zbytečně přeskočilo i overall rating, který na povrchu nezávisí —
+        # update_ratings/EloEngine povrch bez problému zvládne jako None,
+        # jen surface-specific rating se neaktualizuje).
+        engine.process_match(m.winner_id, m.loser_id, m.surface, m.tourney_level)
 
     cutoff = (as_of or latest_date or date.today()) - timedelta(days=RECENT_WINDOW_DAYS)
     ratings = engine.all_ratings()

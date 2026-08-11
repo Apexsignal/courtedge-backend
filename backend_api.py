@@ -8,6 +8,7 @@ těch modulech, tenhle soubor jen routuje HTTP požadavky na ně.
 from __future__ import annotations
 
 import os
+from datetime import date
 from typing import Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -132,10 +133,40 @@ def ingest_historical_data(body: IngestRequest, _: None = Depends(require_admin_
 
 
 # ------------------------------------------------------------
-# Admin — sync kurzů z the-odds-api
+# Admin — ingest historických dat přes api-tennis.com (PRIMÁRNÍ cesta,
+# viz README — appka na tomhle zdroji nemá licenční problém jako u
+# Sackmann/TML CSV, a zvládá i settlement, viz níže).
 # ------------------------------------------------------------
+class ApiTennisIngestRequest(BaseModel):
+    tour: str  # 'atp' | 'wta'
+    date_start: date
+    date_stop: date
+
+
+@app.post("/admin/ingest-api-tennis")
+def ingest_api_tennis(body: ApiTennisIngestRequest, _: None = Depends(require_admin_key)) -> dict:
+    import api_tennis_ingest
+
+    records = api_tennis_ingest.ingest_from_api_tennis(body.tour, body.date_start, body.date_stop)
+    for record in records:
+        db.upsert_player(record)
+    return {"tour": body.tour, "players_updated": len(records)}
+
+
+# ------------------------------------------------------------
+# Admin — sync nadcházejících zápasů + kurzů
+# ------------------------------------------------------------
+@app.post("/admin/sync-api-tennis")
+def sync_api_tennis(tour: str, days_ahead: int = 7, _: None = Depends(require_admin_key)) -> dict:
+    import api_tennis_sync
+    return api_tennis_sync.sync_upcoming_matches(tour, days_ahead=days_ahead)
+
+
 @app.post("/admin/sync-odds")
 def sync_odds(_: None = Depends(require_admin_key)) -> dict:
+    """Záložní/druhý zdroj kurzů (the-odds-api.com) — appka primárně
+    používá api-tennis.com (`/admin/sync-api-tennis`), tohle appka
+    nechává jako alternativu/cross-check, viz odds_provider.py."""
     import odds_sync
     return odds_sync.sync_upcoming_matches()
 
@@ -160,8 +191,11 @@ def daily_tickets(send_telegram: bool = True, _: None = Depends(require_admin_ke
 
 
 # ------------------------------------------------------------
-# Admin — ruční zápis výsledku zápasu (settlement zdroj zatím NEVYŘEŠEN,
-# viz README a settlement.py)
+# Admin — ruční zápis výsledku zápasu. Appka tohle používá jako FALLBACK
+# — primárně appka výsledky zápasů ingestovaných přes api-tennis.com
+# (`/admin/sync-api-tennis`) doplní automaticky v `/admin/settle-all-pending`
+# (viz níže, api_tennis_sync.settle_finished_matches). Ruční zápis appka
+# potřebuje jen pro zápasy z jiného zdroje (např. the-odds-api fallback).
 # ------------------------------------------------------------
 class MatchResultRequest(BaseModel):
     match_id: int
@@ -181,8 +215,23 @@ def submit_match_result(body: MatchResultRequest, _: None = Depends(require_admi
 
 
 @app.post("/admin/settle-all-pending")
-def settle_all_pending(_: None = Depends(require_admin_key)) -> dict:
-    return settlement.settle_all_pending()
+def settle_all_pending(lookback_days: int = 3, _: None = Depends(require_admin_key)) -> dict:
+    """Appka nejdřív zkusí AUTOMATICKY doplnit výsledky posledních
+    `lookback_days` dní z api-tennis.com (pro oba tury), pak teprve
+    vyhodnotí všechny pending tikety, co už mají všechny zápasy hotové."""
+    import api_tennis_sync
+    from datetime import timedelta
+
+    today = date.today()
+    window_start = today - timedelta(days=lookback_days)
+    auto_settlement = {}
+    for tour in ("atp", "wta"):
+        try:
+            auto_settlement[tour] = api_tennis_sync.settle_finished_matches(tour, window_start, today)
+        except Exception as exc:
+            auto_settlement[tour] = {"error": str(exc)}
+
+    return {"auto_settlement": auto_settlement, "tickets": settlement.settle_all_pending()}
 
 
 # ------------------------------------------------------------
