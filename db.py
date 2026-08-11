@@ -76,19 +76,6 @@ def touch_last_login(user_id: int) -> None:
         cur.execute("UPDATE users SET last_login_at = now() WHERE id = %s", (user_id,))
 
 
-def get_paid_telegram_subscribers() -> list[dict]:
-    with get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT * FROM users
-            WHERE telegram_chat_id IS NOT NULL
-              AND subscription_tier != 'free'
-              AND (subscription_until IS NULL OR subscription_until > now())
-            """
-        )
-        return [dict(r) for r in cur.fetchall()]
-
-
 # ------------------------------------------------------------
 # Hráči (Elo, ace rate, bezpečnostní čítače) — viz data_ingest.py
 # ------------------------------------------------------------

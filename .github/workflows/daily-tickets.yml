@@ -1,0 +1,43 @@
+name: Denní tiket
+
+# Appka tohle spouští PLNĚ automatizovaně, bez manuálního schválení mezi
+# jednotlivými kroky (stejný princip appka zvolila u ApexSignalu) —
+# 06:00 UTC odpovídá 7:00 SEČ / 8:00 SELČ (appka bere fixní UTC čas,
+# takže se posun mezi zimním a letním časem appce "rozjede" o hodinu,
+# appka to zatím neřeší, jen tuhle mez appka zdokumentovala).
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  daily-tickets:
+    runs-on: ubuntu-latest
+    env:
+      API_BASE_URL: ${{ secrets.API_BASE_URL }}
+      ADMIN_TASK_KEY: ${{ secrets.ADMIN_TASK_KEY }}
+    steps:
+      - name: Sync ATP zápasů a kurzů
+        run: |
+          curl -sS -f -X POST "$API_BASE_URL/admin/sync-api-tennis?tour=atp&days_ahead=7" \
+            -H "X-Admin-Key: $ADMIN_TASK_KEY"
+
+      - name: Sync WTA zápasů a kurzů
+        run: |
+          curl -sS -f -X POST "$API_BASE_URL/admin/sync-api-tennis?tour=wta&days_ahead=7" \
+            -H "X-Admin-Key: $ADMIN_TASK_KEY"
+
+      - name: Vygenerovat a odeslat denní tiket na Telegram
+        run: |
+          curl -sS -f -X POST "$API_BASE_URL/admin/daily-tickets" \
+            -H "X-Admin-Key: $ADMIN_TASK_KEY"
+
+      # `if: always()` — appka chce vyhodnotit dohrané tikety i když by
+      # některý z kroků výš selhal (např. appka nenašla platnou
+      # kombinaci na dnešní tiket) — settlement včerejších tiketů na
+      # tom nezávisí, appka ho nechce kvůli tomu přeskočit.
+      - name: Vyhodnotit dohrané tikety
+        if: always()
+        run: |
+          curl -sS -f -X POST "$API_BASE_URL/admin/settle-all-pending" \
+            -H "X-Admin-Key: $ADMIN_TASK_KEY"

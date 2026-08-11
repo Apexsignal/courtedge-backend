@@ -46,6 +46,37 @@ ve vlastním repu bez sdílených závislostí.
 | `ticket_telegram.py` | Render tiketu jako JPG + odeslání do Telegramu |
 | `backend_api.py` | FastAPI aplikace, routuje HTTP na moduly výše |
 | `render.yaml` | Render.com Blueprint (web service + Postgres) |
+| `.github/workflows/daily-tickets.yml` | Denní automatizace (sync → tiket → settlement), viz níže |
+
+## Produktový model: appka negeneruje na vyžádání
+
+Na rozdíl od ApexSignalu appka NEMÁ žádné klientské tlačítko "vygeneruj
+tiket" (tokeny, neomezený tarif) — CourtEdge je čistě pasivní odběr:
+appka jednou denně sama, na appčino pozadí, vygeneruje JEDEN tiket a
+rozešle ho broadcastem do appčina Telegram kanálu. Zákazník appku nijak
+neovládá, jen ji odebírá.
+
+## Denní automatizace
+
+`.github/workflows/daily-tickets.yml` appka spouští PLNĚ automatizovaně
+(žádné manuální schválení mezi kroky, stejný princip appka zvolila u
+ApexSignalu), denně v 06:00 UTC:
+1. sync ATP zápasů/kurzů, 2. sync WTA zápasů/kurzů, 3. vygenerování +
+odeslání denního tiketu na Telegram, 4. vyhodnocení dohraných tiketů
+(`if: always()`, aby appka settlement nepřeskočila, i kdyby dnešní
+tiket appka nevygenerovala).
+
+Appka potřebuje tyhle GitHub Actions repo secrets (Settings → Secrets
+and variables → Actions), appka je NEUKLÁDÁ do kódu:
+- `API_BASE_URL` — appčina URL na Renderu (např. `https://courtedge-backend.onrender.com`)
+- `ADMIN_TASK_KEY` — STEJNÁ hodnota jako appčin env var na Renderu
+
+Appka workflow nechává zapnutý i BEZ nasazeného backendu — do doby, než
+appka dostane `API_BASE_URL`/`ADMIN_TASK_KEY`, poběží denně a bude
+appce hlásit selhání (červený běh v GitHub Actions). To appka bere jako
+záměr (appka na to nechce přidávat žádnou zapínací pojistku navíc) —
+jakmile appka backend nasadí a secrets doplní, běhy appce začnou
+procházet bez dalšího zásahu.
 
 ## Zdroj dat — VYŘEŠENO: api-tennis.com
 
@@ -138,6 +169,10 @@ proti živému API.
    ručně do Render dashboardu.
 6. *(Volitelné)* Vlastní the-odds-api.com klíč pro `ODDSAPI_KEY`, pokud
    appka má jednou používat i záložní zdroj kurzů.
+7. **`API_BASE_URL` + `ADMIN_TASK_KEY` jako GitHub Actions repo secrets**
+   (Settings → Secrets and variables → Actions) — bez nich appčin denní
+   cron (`.github/workflows/daily-tickets.yml`) poběží, ale bude
+   selhávat. Viz sekce "Denní automatizace" výše.
 
 ## Lokální vývoj
 
