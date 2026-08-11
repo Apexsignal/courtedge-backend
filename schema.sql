@@ -117,12 +117,14 @@ CREATE TABLE odds_snapshots (
 CREATE INDEX idx_odds_match_market ON odds_snapshots (match_id, market_code, fetched_at DESC);
 
 -- ------------------------------------------------------------
--- 5. TIKETY — appka staví tikety o přesně 2 výběrech
+-- 5. TIKETY — appka staví tikety o 1 až 3 výběrech (viz ticket_builder.py,
+--    appka dřív měla pevné pásmo kurzu 2,00-3,00, appka to zrušila —
+--    jistota kandidátů appce vyjde přednější než konkrétní kurz).
 -- ------------------------------------------------------------
 CREATE TABLE tickets (
     id                  BIGSERIAL PRIMARY KEY,
     user_id              BIGINT REFERENCES users(id),   -- NULL = appčin vlastní denní tiket (broadcast)
-    total_odds            NUMERIC(6,3) NOT NULL CHECK (total_odds BETWEEN 2.00 AND 3.00),
+    total_odds            NUMERIC(6,3) NOT NULL CHECK (total_odds > 1.0),
     status                ticket_status_type NOT NULL DEFAULT 'pending',
     created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
     settled_at              TIMESTAMPTZ

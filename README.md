@@ -217,6 +217,28 @@ kalibrace:
    20 zápasy appce klesl z 69 % na 59,8 % jistoty, hráč s 45 zápasy z
    89 % na 81 %.
 
+### Tiket bez pevného pásma kurzu (2026-08-11, třetí kolo)
+
+Appka dřív stavěla tiket vždy o 2 výběrech, s kombinovaným kurzem
+2,00–3,00. Reálný test proti Tipsportu ukázal problém: appčiny
+nejjistější tipy měly kurz blízko 1,00–1,20 (bookmaker appce dával
+skoro stejnou jistotu). Appka aby se vešla do pásma 2,00–3,00, musela
+místo nejjistějších tipů brát méně jisté, jen aby appka dostala
+vyšší kurz.
+
+Appka pásmo zrušila. Nová pravidla v `ticket_builder.py`:
+
+- Appka bere 1 až 3 nejjistější kandidáty (`MIN_TICKET_LEGS` = 1,
+  `MAX_TICKET_LEGS` = 3), každý z jiného zápasu.
+- Appka nekontroluje výsledný kombinovaný kurz. Jistota appce jde
+  před kurzem.
+- Appka pořád vyřazuje kurzy pod 1,15 (viz `select_candidates()`
+  výše) — tam appka nemá žádnou výhodu.
+
+Appka zvedla i DB constraint v `schema.sql` (`tickets.total_odds`
+appka jen kontroluje `> 1.0`, ne pásmo) a Telegram render appka umí
+sklonit počet výběrů v češtině (1 výběr / 2–4 výběry / 5+ výběrů).
+
 ## Další otevřené věci
 
 - **api-tennis.com nemá bookmaker trh na esa** (stejně jako the-odds-api)

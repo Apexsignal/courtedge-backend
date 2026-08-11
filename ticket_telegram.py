@@ -66,6 +66,15 @@ def build_ticket_caption(ticket: dict) -> str:
     )
 
 
+def _pluralize_vyber(n: int) -> str:
+    """Appka skloňuje počet výběrů — 1 výběr, 2-4 výběry, 5+ výběrů."""
+    if n == 1:
+        return "1 výběr"
+    if 2 <= n <= 4:
+        return f"{n} výběry"
+    return f"{n} výběrů"
+
+
 def wrap(draw, text, font, max_width):
     words = text.split()
     lines, cur = [], ""
@@ -148,7 +157,7 @@ def render_ticket(ticket: dict) -> Image.Image:
     footer_y = height - footer_h + 20
     draw.line([(PADDING, footer_y - 14), (WIDTH - PADDING, footer_y - 14)], fill=LINE, width=2)
     draw.text(
-        (PADDING, footer_y), f"{len(legs)} výběry · vygenerováno {datetime.now().strftime('%d.%m.%Y %H:%M')}",
+        (PADDING, footer_y), f"{_pluralize_vyber(len(legs))} · vygenerováno {datetime.now().strftime('%d.%m.%Y %H:%M')}",
         font=f_body, fill=TEXT,
     )
 

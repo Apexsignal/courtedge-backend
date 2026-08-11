@@ -128,8 +128,9 @@ def build_candidates_from_pending_matches() -> tuple[list[Candidate], dict[int, 
 
 def generate_daily_ticket(user_id: Optional[int] = None) -> Optional[dict]:
     """Appka vrátí uložený tiket (s legy obohacenými o jména hráčů pro
-    render/odeslání), nebo None, pokud appka nenašla platnou kombinaci
-    2 legů v pásmu kurzu 2,00–3,00 (viz ticket_builder.py)."""
+    render/odeslání), nebo None, pokud appka nenašla ani jednoho
+    použitelného kandidáta (viz ticket_builder.py — appka bere 1 až 3
+    nejjistější picky, bez pevného pásma kurzu)."""
     candidates, match_meta = build_candidates_from_pending_matches()
     selected = select_candidates(candidates)
     built = build_ticket(selected)

@@ -14,10 +14,12 @@ Princip (viz kontext appky, nahrazuje klasický value/edge betting):
    - vyřadit hráče s málo odehranými zápasy (nedůvěryhodný rating)
    - vyřadit kandidáty pod prahem minimální jistoty pro daný trh
      (market_thresholds v DB, různé pro tři trhy)
-4. Appka vezme 2 nejjistější kandidáty z RŮZNÝCH zápasů a spočítá
-   kombinovaný kurz (součin tržních kurzů obou legů). Pokud výsledek
-   nespadá do pásma 2,00–3,00, appka zkusí další kombinace (další
-   nejjistější pár) — ne že by appka kurz kandidátů uměle upravovala.
+4. Appka vezme 1 až MAX_TICKET_LEGS nejjistějších kandidátů z RŮZNÝCH
+   zápasů, bez ohledu na to, jaký z toho vyjde kombinovaný kurz.
+   Appka to dřív měla svázané pevným pásmem 2,00–3,00, ale appka
+   zjistila, že vysoká jistota a vysoký kurz jdou málokdy dohromady
+   (bookmaker appce dává skoro stejnou jistotu jako appka) — appka radši
+   volí jistotu, ať appka kurz vyjde jakýkoliv.
 
 Appka i s tímhle přístupem dlouhodobě potřebuje, aby model byl LEPŠÍ než
 náhoda — jinak appka prohrává o marži bookmakera stejně jako klasický
@@ -27,13 +29,11 @@ nemusela mít funkční model.
 """
 from __future__ import annotations
 
-import itertools
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
-TICKET_ODDS_MIN = 2.00
-TICKET_ODDS_MAX = 3.00
-TICKET_LEGS = 2
+MIN_TICKET_LEGS = 1
+MAX_TICKET_LEGS = 3
 
 
 @dataclass
@@ -143,31 +143,19 @@ class BuiltTicket:
 
 def build_ticket(ranked_candidates: list[Candidate]) -> Optional[BuiltTicket]:
     """
-    Appka projde kandidáty odshora (nejjistější první) a hledá první
-    dvojici z RŮZNÝCH zápasů, jejíž kombinovaný tržní kurz padne do
-    pásma 2,00–3,00. Appka preferuje páry blíž vrcholu žebříčku (víc
-    jisté), ne první platnou kombinaci odkudkoli v seznamu — proto
-    appka iteruje přes dvojice v pořadí rostoucí "vzdálenosti od
-    vrcholu" (součet indexů), ne přes obyčejný itertools.combinations
-    v původním pořadí, kde by první nalezená kombinace mohla obsahovat
-    kandidáta hluboko v žebříčku.
+    Appka vezme prvních MAX_TICKET_LEGS kandidátů odshora žebříčku
+    (nejjistější první, jeden na zápas — appka to očekává už
+    deduplikované přes select_candidates). Appka nehledá žádnou
+    konkrétní kombinaci kurzu, jen bere nejjistější dostupné picky.
+    Appka vrátí None, pokud appka nemá ani MIN_TICKET_LEGS použitelný
+    kandidát.
     """
     usable = [c for c in ranked_candidates if c.market_odds is not None and c.market_odds > 1.0]
-    n = len(usable)
-    if n < TICKET_LEGS:
+    if len(usable) < MIN_TICKET_LEGS:
         return None
 
-    pairs_by_rank_sum = sorted(
-        itertools.combinations(range(n), TICKET_LEGS),
-        key=lambda idx_pair: sum(idx_pair),
-    )
-
-    for i, j in pairs_by_rank_sum:
-        leg_a, leg_b = usable[i], usable[j]
-        if leg_a.match_id == leg_b.match_id:
-            continue  # appka nechce 2 výběry ze stejného zápasu (korelované, ne nezávislé)
-        combined_odds = round(leg_a.market_odds * leg_b.market_odds, 3)
-        if TICKET_ODDS_MIN <= combined_odds <= TICKET_ODDS_MAX:
-            return BuiltTicket(legs=[leg_a, leg_b], total_odds=combined_odds)
-
-    return None
+    legs = usable[:MAX_TICKET_LEGS]
+    combined_odds = 1.0
+    for leg in legs:
+        combined_odds *= leg.market_odds
+    return BuiltTicket(legs=legs, total_odds=round(combined_odds, 3))
