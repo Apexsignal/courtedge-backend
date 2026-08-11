@@ -57,6 +57,7 @@ class RawMatch:
     l_ace: Optional[int]
     w_svgms: Optional[int]
     l_svgms: Optional[int]
+    total_games: Optional[int] = None  # appka to potřebuje jen pro zpětný test (backtest_calibration.py) — CSV cesta ho nechává None, appka ho tam nepotřebuje
 
     @property
     def is_retirement(self) -> bool:

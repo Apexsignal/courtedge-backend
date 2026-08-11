@@ -70,6 +70,13 @@ def fixture_to_raw_match(fixture: dict, surface_by_tournament: dict[int, Optiona
         l_ace=provider.match_stat_value_int(statistics, loser_key, "Aces"),
         w_svgms=provider.match_stat_total(statistics, winner_key, "Service games won"),
         l_svgms=provider.match_stat_total(statistics, loser_key, "Service games won"),
+        # "Total games won".stat_total appka dostává STEJNÉ pro oba hráče
+        # (celkový počet gemů v zápase) — appka bere kterýkoliv z obou,
+        # stejný princip jako u settlementu (api_tennis_sync.py).
+        total_games=(
+            provider.match_stat_total(statistics, winner_key, "Total games won")
+            or provider.match_stat_total(statistics, loser_key, "Total games won")
+        ),
     )
 
 
