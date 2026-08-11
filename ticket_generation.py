@@ -17,7 +17,7 @@ from ticket_builder import (
     SafetyContext,
     build_ticket,
     passes_safety_filters,
-    rank_candidates,
+    select_candidates,
 )
 
 DEFAULT_ACES_LINE = 20.5  # appka nemá tržní kurz na esa (viz odds_provider.py) — startovní hranice, dokud appka nemá lepší zdroj
@@ -124,8 +124,8 @@ def generate_daily_ticket(user_id: Optional[int] = None) -> Optional[dict]:
     render/odeslání), nebo None, pokud appka nenašla platnou kombinaci
     2 legů v pásmu kurzu 2,00–3,00 (viz ticket_builder.py)."""
     candidates, match_meta = build_candidates_from_pending_matches()
-    ranked = rank_candidates(candidates)
-    built = build_ticket(ranked)
+    selected = select_candidates(candidates)
+    built = build_ticket(selected)
     if built is None:
         return None
 

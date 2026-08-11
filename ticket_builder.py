@@ -94,10 +94,45 @@ def passes_safety_filters(
     return True
 
 
+MIN_USABLE_ODDS = 1.15
+# Appka objevila živě, že market_models.py u jednoho hodně jednostranného
+# zápasu vygeneruje kandidáty na DESÍTKY různých hranic gemů (appka nabízí
+# každou hranici, co appka najde tržní kurz) — appka to bez zásahu vidí
+# jako "8 nejjistějších tipů", i když je to jeden signál osmkrát. Appka
+# navíc takové extrémní kandidáty appka pozná podle kurzu blízko 1,00 —
+# to znamená, že i BOOKMAKER appku vidí skoro jistě, appka na tom nemá
+# žádnou vlastní výhodu a do tiketu appku takový leg stejně nepoužije
+# (kombinovaný kurz by appku appku stáhl pod 2,00).
+
+
 def rank_candidates(candidates: list[Candidate]) -> list[Candidate]:
     """Čistě podle vlastní jistoty modelu, nejjistější první. Appka
     filtry aplikuje PŘED voláním týhle funkce (viz passes_safety_filters)."""
     return sorted(candidates, key=lambda c: c.model_probability, reverse=True)
+
+
+def select_candidates(candidates: list[Candidate]) -> list[Candidate]:
+    """
+    Appka tímhle žebříček čistí od dvou zkreslení, než appka kandidáty
+    seřadí a stavbě tiketu předá:
+
+    1. Vyřadí kurzy appka pod MIN_USABLE_ODDS — appka na nich nemá
+       žádnou informační výhodu (bookmaker appce dává skoro stejnou
+       jistotu) a do kombinovaného kurzu appka stejně nepřispějí.
+    2. Nechá jen NEJJISTĚJŠÍHO kandidáta z každého zápasu — appka jinak
+       jeden jednostranný zápas appce vyplní žebříček desítkami variant
+       (různé hranice gemů/es), což appku klame, že appka má spoustu
+       nezávislých silných signálů, místo jednoho.
+    """
+    usable = [c for c in candidates if c.market_odds is not None and c.market_odds >= MIN_USABLE_ODDS]
+
+    best_per_match: dict[int, Candidate] = {}
+    for c in usable:
+        current_best = best_per_match.get(c.match_id)
+        if current_best is None or c.model_probability > current_best.model_probability:
+            best_per_match[c.match_id] = c
+
+    return rank_candidates(list(best_per_match.values()))
 
 
 @dataclass
