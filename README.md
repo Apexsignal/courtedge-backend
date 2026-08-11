@@ -120,11 +120,33 @@ Elo/ace-rate a jak bude appka vyhodnocovat zápasy po skončení
    api-tennis.com podpory písemné potvrzení, ale jako start appka na
    tomhle zdroji staví.
 
-**Appka tohle živě otestovala** (viz `api_tennis_ingest.py`,
+**Appka tohle živě otestovala proti reálnému API** (viz `api_tennis_ingest.py`,
 `api_tennis_sync.py`) — reálný import zápasů, přepočet Elo/ace-rate,
 sync nadcházejících zápasů s kurzy (23 zápasů, 758 kurzových řádků
 z jednoho volání) i automatický settlement dohraných zápasů fungují
 proti živému API.
+
+**Appka navíc otestovala CELÝ řetězec naostro, end-to-end** — appka si
+lokálně postavila skutečnou PostgreSQL, nahrála oba historické snapshoty
+(`scripts/load_snapshot_into_db.py`, bez jediného API volání), rozjela
+appku (`uvicorn backend_api:app`) a přes reálné HTTP endpointy postupně
+zavolala `/admin/sync-api-tennis` (ATP i WTA, živá data z Cincinnati),
+`/admin/daily-tickets` (appka reálně vygenerovala a uložila tiket, kurz
+2,03 — appka správně vzala 2 zápasy s velkým Elo gapem a vsadila na
+"pod" gemy) a `/admin/settle-all-pending`. Appka navíc ověřila i
+vyrenderování obrázku tiketu (`ticket_telegram.render_ticket`) na
+reálných datech. Jediné dva kroky appka nemohla ověřit živě, protože
+appka na ně nemá přístup: skutečné odeslání na Telegram (chybí
+`TELEGRAM_BOT_TOKEN`) a platba přes Stripe.
+
+Appka při tomhle testu narazila a opravila dvě skutečné chyby, co by se
+jinak projevily až na produkci:
+- `matches.round` byl `VARCHAR(10)`, ale api-tennis.com appce dává
+  popisný text jako `"ATP Montreal - Quarter-finals"`, ne krátký kód
+  jako Sackmann/TML formát — appka sloupec rozšířila na `VARCHAR(100)`.
+- `market_models.estimate_total_aces` počítal s `float`, ale psycopg2
+  appce vrací `NUMERIC` sloupce (ace rate) jako `decimal.Decimal` —
+  appka to sjednotila na hranici DB/výpočtu v `ticket_generation.py`.
 
 ## Další otevřené věci
 

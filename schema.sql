@@ -78,7 +78,7 @@ CREATE TABLE matches (
     tourney_name        VARCHAR(150),
     surface             surface_type,
     tourney_level        VARCHAR(10),                -- G (Grand Slam) | M (Masters) | A (ATP/WTA Tour) | D (Davis/Fed Cup)
-    round                VARCHAR(10),                -- R128, R64, ..., F
+    round                VARCHAR(100),               -- R128, R64, ..., F -- api-tennis.com dává popisný text (např. "ATP Montreal - Quarter-finals"), ne krátký kód jako Sackmann/TML formát, appka to zjistila živě při prvním reálném syncu
     best_of              SMALLINT DEFAULT 3,
     start_time            TIMESTAMPTZ NOT NULL,
     status                match_status_type NOT NULL DEFAULT 'scheduled',

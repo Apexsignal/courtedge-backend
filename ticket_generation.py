@@ -23,6 +23,13 @@ from ticket_builder import (
 DEFAULT_ACES_LINE = 20.5  # appka nemá tržní kurz na esa (viz odds_provider.py) — startovní hranice, dokud appka nemá lepší zdroj
 
 
+def _to_float(value) -> Optional[float]:
+    """psycopg2 appce vrací NUMERIC sloupce jako decimal.Decimal, ne float
+    — market_models.py počítá s obyčejným float aritmetikou, appka to tu
+    sjednocuje na hranici DB/výpočtu, ne na desítkách míst zvlášť."""
+    return float(value) if value is not None else None
+
+
 def _rating_from_row(row: dict, prefix: str) -> PlayerRating:
     return PlayerRating(
         player_id=0,
@@ -99,7 +106,7 @@ def build_candidates_from_pending_matches() -> tuple[list[Candidate], dict[int, 
         # None, dokud appka nenajde zdroj kurzu → ticket_builder.build_ticket
         # takový kandidát nepoužije pro sestavení tiketu (potřebuje odds).
         aces_est = estimate_total_aces(
-            m.get(f"a_ace_rate_{surface}"), m.get(f"b_ace_rate_{surface}"), games_est,
+            _to_float(m.get(f"a_ace_rate_{surface}")), _to_float(m.get(f"b_ace_rate_{surface}")), games_est,
         )
         for selection, prob_fn in (("over", aces_est.prob_over), ("under", aces_est.prob_under)):
             cand = Candidate(
