@@ -109,17 +109,29 @@ def combined_confidence(player_a: PlayerRating, player_b: PlayerRating) -> float
     return min(rating_confidence(player_a.matches_played_total), rating_confidence(player_b.matches_played_total))
 
 
-def win_probability(player_a: PlayerRating, player_b: PlayerRating, surface: str) -> float:
+def win_probability(
+    player_a: PlayerRating,
+    player_b: PlayerRating,
+    surface: str,
+    fatigue_elo_adjustment: float = 0.0,
+    confidence_multiplier: float = 1.0,
+) -> float:
     """
     Appčin vlastní odhad pravděpodobnosti výhry player_a nad player_b na
     daném povrchu. Pokud appka o některém z hráčů nemá dost dat (viz
     combined_confidence výše), odhad se posune blíž k 50 %. Appka radši
     přizná nejistotu, než by tvrdila jistotu, kterou nemá.
+
+    `fatigue_elo_adjustment` a `confidence_multiplier` appka bere jako
+    volitelné vstupy z head_to_head.py (signál únavy/odpočinku, viz
+    tam) — appka je tady nechává na 0.0/1.0, ať appka historický
+    přepočet Elo (data_ingest.py) a backtest (scripts/backtest_calibration.py)
+    nemusí o téhle appce vůbec vědět.
     """
-    ra = player_a.blended_elo(surface)
+    ra = player_a.blended_elo(surface) + fatigue_elo_adjustment
     rb = player_b.blended_elo(surface)
     raw = expected_score(ra, rb)
-    confidence = combined_confidence(player_a, player_b)
+    confidence = combined_confidence(player_a, player_b) * confidence_multiplier
     return 0.5 + confidence * (raw - 0.5)
 
 

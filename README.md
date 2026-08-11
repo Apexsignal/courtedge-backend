@@ -239,6 +239,44 @@ Appka zvedla i DB constraint v `schema.sql` (`tickets.total_odds`
 appka jen kontroluje `> 1.0`, ne pásmo) a Telegram render appka umí
 sklonit počet výběrů v češtině (1 výběr / 2–4 výběry / 5+ výběrů).
 
+### H2H a signál únavy/odpočinku (2026-08-11, čtvrté kolo)
+
+Appka dosud počítala jen s Elo ratingem — neznala vzájemnou historii
+dvou konkrétních hráčů ani to, jestli je někdo z nich unavený nebo
+naopak po dlouhé pauze. Appka to teď doplnila přes nový modul
+`head_to_head.py`, který volá api-tennis.com metodu `get_H2H`
+(appka ji předtím nepoužívala) — appka jedním voláním na zápas dostane
+vzájemnou historii OBOU hráčů i poslední odehrané zápasy KAŽDÉHO z
+nich zvlášť.
+
+Appka z toho počítá tři různé úpravy:
+
+1. **H2H poměr výher** — appka appčin Elo odhad posune blíž k tomu, jak
+   spolu tihle dva hráči hráli dřív. Váha roste s počtem vzájemných
+   zápasů, ale appka ji shora omezuje na 35 % (`H2H_MAX_WEIGHT`) — pár
+   zápasů appce na jistotu nestačí.
+2. **Únava** — appka spočítá, kolik zápasů každý hráč odehrál za
+   posledních 7 dní, a rozdíl appka promítne jako Elo penalizaci
+   unavenějšího hráče (`FATIGUE_ELO_PER_EXTRA_MATCH`).
+3. **Dlouhá pauza** (45+ dní bez zápasu) — appka tady NEVÍ, jestli je
+   hráč lepší nebo horší než appčin rating říká, takže appka jen
+   sníží důvěru (posun blíž k 50 % u výherce, širší rozptyl u
+   gemů/es) — stejný princip jako appčina nejistota ratingu výše.
+
+Appka volání dělá ŽIVĚ při generování tiketu, obalené v try/except
+(`ticket_generation._fetch_form_safe`) — když api-tennis.com
+nedostupnost/limit appce zrovna ten zápas neumožní, appka tiket
+postaví i tak, jen bez H2H/únava úpravy pro daný zápas.
+
+Appka konstanty (`FATIGUE_ELO_PER_EXTRA_MATCH`, `LONG_LAYOFF_DAYS`,
+`LAYOFF_CONFIDENCE_MULTIPLIER`) jsou zatím hrubý odhad — appka je
+zatím neměla na čem zpětně otestovat (backtest_calibration.py appka
+zatím nemá zdroj H2H/rozpisu zápasů v historickém CSV formátu). Appka
+logiku ověřila jen jednotkovými testy proti zdokumentovanému tvaru
+odpovědi `get_H2H`, NE proti živému volání (appka v tomhle běhu neměla
+po ruce platný `APITENNIS_KEY`) — appka doporučuje ověřit první reálné
+volání, až appka příště poběží s klíčem.
+
 ## Další otevřené věci
 
 - **api-tennis.com nemá bookmaker trh na esa** (stejně jako the-odds-api)

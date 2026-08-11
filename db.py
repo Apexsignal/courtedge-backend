@@ -218,12 +218,14 @@ def get_pending_matches() -> list[dict]:
         cur.execute(
             """
             SELECT m.*,
+                   pa.external_id AS a_external_id,
                    pa.full_name AS player_a_name, pa.elo_overall AS a_elo_overall,
                    pa.elo_hard AS a_elo_hard, pa.elo_clay AS a_elo_clay, pa.elo_grass AS a_elo_grass, pa.elo_carpet AS a_elo_carpet,
                    pa.ace_rate_hard AS a_ace_rate_hard, pa.ace_rate_clay AS a_ace_rate_clay,
                    pa.ace_rate_grass AS a_ace_rate_grass, pa.ace_rate_carpet AS a_ace_rate_carpet,
                    pa.matches_played_12mo AS a_matches_played_12mo, pa.matches_played_total AS a_matches_played_total,
                    pa.recent_retirements_12mo AS a_recent_retirements,
+                   pb.external_id AS b_external_id,
                    pb.full_name AS player_b_name, pb.elo_overall AS b_elo_overall,
                    pb.elo_hard AS b_elo_hard, pb.elo_clay AS b_elo_clay, pb.elo_grass AS b_elo_grass, pb.elo_carpet AS b_elo_carpet,
                    pb.ace_rate_hard AS b_ace_rate_hard, pb.ace_rate_clay AS b_ace_rate_clay,

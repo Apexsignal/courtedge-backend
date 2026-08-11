@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Optional
 
 import db
+import head_to_head
 from elo_model import PlayerRating, combined_confidence, win_probability
 from market_models import estimate_total_aces, estimate_total_games
 from ticket_builder import (
@@ -28,6 +29,20 @@ def _to_float(value) -> Optional[float]:
     — market_models.py počítá s obyčejným float aritmetikou, appka to tu
     sjednocuje na hranici DB/výpočtu, ne na desítkách míst zvlášť."""
     return float(value) if value is not None else None
+
+
+def _fetch_form_safe(m: dict) -> Optional[head_to_head.MatchupForm]:
+    """Appka appce zavolá get_H2H (viz head_to_head.py) — appka to
+    obaluje try/except, protože appka radši dostane tiket BEZ H2H/únava
+    signálu, než aby appce jeden nedostupný zápas na api-tennis.com
+    (výpadek, chybějící player_key, rate limit) shodil celé generování
+    tiketu."""
+    try:
+        return head_to_head.fetch_matchup_form(
+            m["a_external_id"], m["b_external_id"], m["start_time"].date(),
+        )
+    except Exception:
+        return None
 
 
 def _rating_from_row(row: dict, prefix: str) -> PlayerRating:
@@ -73,13 +88,23 @@ def build_candidates_from_pending_matches() -> tuple[list[Candidate], dict[int, 
             player_b_recent_retirements=m["b_recent_retirements"],
         )
 
+        # Appka spočítá H2H a únava/odpočinek signál jednou na zápas (viz
+        # head_to_head.py) — appka ho použije jak pro pravděpodobnost
+        # výherce (H2H poměr + únavový Elo posun), tak pro appčinu
+        # důvěru u všech tří trhů (dlouhá pauza appku sníží).
+        form = _fetch_form_safe(m)
+        fatigue_adj = head_to_head.fatigue_elo_adjustment(form) if form else 0.0
+        layoff_mult = head_to_head.layoff_confidence_multiplier(form) if form else 1.0
+
         # Appka spočítá nejistotu jednou na zápas — stejná pro všechny tři
         # trhy, protože vychází ze stejné dvojice hráčů (viz elo_model.py).
-        confidence = combined_confidence(rating_a, rating_b)
+        confidence = combined_confidence(rating_a, rating_b) * layoff_mult
 
         # --- trh 1: výherce zápasu ---
         odds_winner = {o["selection"]: float(o["odds_decimal"]) for o in db.get_latest_odds(m["id"], "match_winner")}
-        prob_a = win_probability(rating_a, rating_b, surface)
+        prob_a = win_probability(rating_a, rating_b, surface, fatigue_elo_adjustment=fatigue_adj, confidence_multiplier=layoff_mult)
+        if form:
+            prob_a = head_to_head.h2h_adjusted_probability(prob_a, form)
         for selection, prob in (("player_a", prob_a), ("player_b", 1 - prob_a)):
             cand = Candidate(
                 match_id=m["id"], market_code="match_winner", selection=selection, line=None,

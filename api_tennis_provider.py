@@ -94,6 +94,15 @@ def get_odds(date_start: str, date_stop: str, tour: str) -> dict[str, dict]:
     return raw if isinstance(raw, dict) else {}
 
 
+def get_h2h(first_player_key: str, second_player_key: str) -> dict:
+    """Appka appce vrátí {"H2H": [...], "firstPlayerResults": [...],
+    "secondPlayerResults": [...]} — jedno volání appce dá VZÁJEMNOU
+    historii obou hráčů A poslední zápasy KAŽDÉHO z nich zvlášť (appka
+    z toho počítá H2H poměr i signál únavy/odpočinku, viz head_to_head.py)."""
+    raw = _call("get_H2H", first_player_key=first_player_key, second_player_key=second_player_key)
+    return raw if isinstance(raw, dict) else {}
+
+
 def normalize_surface(raw: Optional[str]) -> Optional[str]:
     if not raw:
         return None
