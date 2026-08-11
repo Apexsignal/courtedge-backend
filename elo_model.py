@@ -77,11 +77,50 @@ def expected_score(rating_a: float, rating_b: float) -> float:
     return 1.0 / (1.0 + math.pow(10, (rating_b - rating_a) / 400.0))
 
 
+# --- Nejistota ratingu (Glicko-inspirované).
+#
+# Appka si 2026-08-11 živě všimla problému: nejjistější tipy skoro vždy
+# patřily hráčům z kvalifikací. Právě tihle hráči mají nejméně
+# odehraných zápasů, takže appka o nich ví nejméně. Elo appka dosud
+# bralo jako pevné číslo bez ohledu na to, kolik za ním stojí dat —
+# hráč se 300 zápasy a hráč s 15 zápasy dostávali stejnou váhu, pokud
+# měli stejný rating. To appka teď opravuje: rating hráče s málo daty
+# appka bere s menší důvěrou a výslednou pravděpodobnost posouvá blíž
+# k 50 %.
+CONFIDENCE_HALF_LIFE_MATCHES = 20  # appka dosáhne poloviny plné důvěry po tolika odehraných zápasech
+
+
+def rating_confidence(matches_played_total: int) -> float:
+    """
+    Appka vrátí číslo mezi 0 a 1. Appka bere 0 jako "appka o hráči neví
+    nic" a 1 jako "appka ratingu věří naplno". Hodnota roste s počtem
+    odehraných zápasů a asymptoticky se blíží k 1, nikdy ji nedosáhne
+    přesně. Appka příklad: 20 zápasů dá důvěru 50 %, 100 zápasů dá
+    zhruba 83 %.
+    """
+    n = max(matches_played_total, 0)
+    return n / (n + CONFIDENCE_HALF_LIFE_MATCHES)
+
+
+def combined_confidence(player_a: PlayerRating, player_b: PlayerRating) -> float:
+    """Appka bere SLABŠÍ ze dvou důvěr — appka predikce zápasu je jen
+    tak spolehlivá, jak spolehlivě appka zná toho hůř zmapovaného
+    hráče, i kdyby appka o druhém věděla sebevíc."""
+    return min(rating_confidence(player_a.matches_played_total), rating_confidence(player_b.matches_played_total))
+
+
 def win_probability(player_a: PlayerRating, player_b: PlayerRating, surface: str) -> float:
-    """Appčin vlastní odhad pravděpodobnosti výhry player_a nad player_b na daném povrchu."""
+    """
+    Appčin vlastní odhad pravděpodobnosti výhry player_a nad player_b na
+    daném povrchu. Pokud appka o některém z hráčů nemá dost dat (viz
+    combined_confidence výše), odhad se posune blíž k 50 %. Appka radši
+    přizná nejistotu, než by tvrdila jistotu, kterou nemá.
+    """
     ra = player_a.blended_elo(surface)
     rb = player_b.blended_elo(surface)
-    return expected_score(ra, rb)
+    raw = expected_score(ra, rb)
+    confidence = combined_confidence(player_a, player_b)
+    return 0.5 + confidence * (raw - 0.5)
 
 
 def _k_factor(tourney_level: Optional[str]) -> int:

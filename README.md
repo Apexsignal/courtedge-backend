@@ -194,6 +194,29 @@ detekce — stálo by to appku další hodiny stahování z api-tennis.com.
 konzervativnější, než appka syrová naměřená data — až appka příště
 poběží backtest, měla by ho přepočítat na čistá data.
 
+### Vyčištění žebříčku a nejistota ratingu (2026-08-11, druhé kolo)
+
+Appka narazila živě na dvě další zkreslení, den po prvním kole
+kalibrace:
+
+1. **Jeden zápas vyplnil žebříček desítkami "kandidátů".** Appka pro
+   trh gemy nabízela kandidáta na KAŽDOU dostupnou hranici kurzu — u
+   jednoho hodně jednostranného zápasu appka takhle dostala 8+ variant
+   stejného signálu (různé hranice), což appku uvedlo v omyl, že má
+   spoustu jistých tipů. Appka to vyřešila novou funkcí
+   `ticket_builder.select_candidates()` — appka nechá jen nejjistějšího
+   kandidáta z každého zápasu a vyřadí kurzy pod 1,15 (tam appka nemá
+   žádnou výhodu, bookmaker to vidí skoro stejně jistě).
+2. **Appka věřila hráčům z kvalifikací stejně jako appka ostříleným
+   hráčům**, pokud měli podobný rating — i když má appka o hráči s 15
+   zápasy mnohem míň dat než o hráči s 300 zápasy. Appka přidala
+   `elo_model.rating_confidence()`/`combined_confidence()`
+   (Glicko-inspirované): appka odhad appky posouvá blíž k 50 % (u
+   výherce) nebo appka nafoukne rozptyl (u appky gemů/es), pokud
+   appka o některém hráči nemá dost dat. Appka ověřila živě — hráč s
+   20 zápasy appce klesl z 69 % na 59,8 % jistoty, hráč s 45 zápasy z
+   89 % na 81 %.
+
 ## Další otevřené věci
 
 - **api-tennis.com nemá bookmaker trh na esa** (stejně jako the-odds-api)

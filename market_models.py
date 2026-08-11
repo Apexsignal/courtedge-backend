@@ -98,6 +98,12 @@ ACES_BIAS_CORRECTION = 1.121
 # binomický model, který appka kvůli jedné konstantě zatím nestaví.
 ACES_OVERDISPERSION = 6.66
 
+# Appka tímhle dělí rozptyl, když volající předá `confidence` < 1 (viz
+# elo_model.combined_confidence) — appka nedovolí, aby appka dělila
+# nulou nebo appka rozptyl nafoukla do nesmyslné výšky u hráče appka s
+# nulou zápasů.
+MIN_CONFIDENCE_FLOOR = 0.1
+
 
 def _normal_cdf(x: float, mean: float, std_dev: float) -> float:
     """P(X <= x) pro normální rozdělení — appka bez scipy, jen erf ze stdlib."""
@@ -123,11 +129,17 @@ def estimate_total_games(
     elo_b: float,
     surface: str,
     best_of: int = 3,
+    confidence: float = 1.0,
 ) -> GamesTotalEstimate:
     """
     Odhad rozdělení celkového počtu gemů v zápase. Menší |elo_a - elo_b|
     → appka očekává vyrovnanější a tím spíš delší zápas (víc gemů),
     velký gap → appka očekává kratší zápas.
+
+    `confidence` appka bere z elo_model.combined_confidence — číslo mezi
+    0 a 1 podle toho, kolik dat appka o obou hráčích má. Appka s nízkou
+    hodnotou rozptyl nafoukne, aby appka nebyla zbytečně jistá u hráčů,
+    o kterých toho moc neví (typicky kvalifikace, nováčci).
     """
     baseline = BASELINE_GAMES.get((surface, best_of), BASELINE_GAMES.get((surface, 3), 22.9))
     gap = abs(elo_a - elo_b)
@@ -135,7 +147,8 @@ def estimate_total_games(
     # posouvá dolů (jednostrannější zápas, kratší sety).
     adjustment = -GAMES_ELO_GAP_SENSITIVITY * gap
     expected_games = baseline + adjustment
-    std_dev = GAMES_STD_DEV_BY_SURFACE.get(surface, GAMES_STD_DEV_DEFAULT)
+    base_std_dev = GAMES_STD_DEV_BY_SURFACE.get(surface, GAMES_STD_DEV_DEFAULT)
+    std_dev = base_std_dev / max(confidence, MIN_CONFIDENCE_FLOOR)
     return GamesTotalEstimate(expected_games=max(expected_games, 12.0), std_dev=std_dev)
 
 
@@ -160,6 +173,7 @@ def estimate_total_aces(
     ace_rate_a: Optional[float],
     ace_rate_b: Optional[float],
     games_estimate: GamesTotalEstimate,
+    confidence: float = 1.0,
 ) -> AcesTotalEstimate:
     """
     Očekávaný součet es obou hráčů = (ace_rate_a + ace_rate_b) *
@@ -168,11 +182,14 @@ def estimate_total_aces(
     odhad byl systematicky o ~11 % nízko). Servisní hry appka odhaduje
     jako total_games (obě servisní řady dohromady zhruba odpovídají
     total_games, protože každý gem má jednoho podávajícího).
+
+    `confidence` má stejný význam jako u estimate_total_games — nízká
+    hodnota rozptyl nafoukne.
     """
     rate_a = ace_rate_a if ace_rate_a is not None else AVG_ACE_RATE_FALLBACK
     rate_b = ace_rate_b if ace_rate_b is not None else AVG_ACE_RATE_FALLBACK
     expected_service_games = games_estimate.expected_games
     expected_aces = (rate_a + rate_b) * expected_service_games / 2 * ACES_BIAS_CORRECTION
     expected_aces = max(expected_aces, 0.5)
-    std_dev = math.sqrt(ACES_OVERDISPERSION * expected_aces)
+    std_dev = math.sqrt(ACES_OVERDISPERSION * expected_aces) / max(confidence, MIN_CONFIDENCE_FLOOR)
     return AcesTotalEstimate(expected_aces=expected_aces, std_dev=std_dev)

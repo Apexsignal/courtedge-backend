@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Optional
 
 import db
-from elo_model import PlayerRating, win_probability
+from elo_model import PlayerRating, combined_confidence, win_probability
 from market_models import estimate_total_aces, estimate_total_games
 from ticket_builder import (
     Candidate,
@@ -38,6 +38,7 @@ def _rating_from_row(row: dict, prefix: str) -> PlayerRating:
         elo_clay=float(row[f"{prefix}_elo_clay"]),
         elo_grass=float(row[f"{prefix}_elo_grass"]),
         elo_carpet=float(row[f"{prefix}_elo_carpet"]),
+        matches_played_total=row.get(f"{prefix}_matches_played_total") or 0,
     )
 
 
@@ -72,6 +73,10 @@ def build_candidates_from_pending_matches() -> tuple[list[Candidate], dict[int, 
             player_b_recent_retirements=m["b_recent_retirements"],
         )
 
+        # Appka spočítá nejistotu jednou na zápas — stejná pro všechny tři
+        # trhy, protože vychází ze stejné dvojice hráčů (viz elo_model.py).
+        confidence = combined_confidence(rating_a, rating_b)
+
         # --- trh 1: výherce zápasu ---
         odds_winner = {o["selection"]: float(o["odds_decimal"]) for o in db.get_latest_odds(m["id"], "match_winner")}
         prob_a = win_probability(rating_a, rating_b, surface)
@@ -86,6 +91,7 @@ def build_candidates_from_pending_matches() -> tuple[list[Candidate], dict[int, 
         # --- trh 2: over/under gemů ---
         games_est = estimate_total_games(
             rating_a.blended_elo(surface), rating_b.blended_elo(surface), surface, m.get("best_of") or 3,
+            confidence=confidence,
         )
         odds_games: dict[tuple[str, float], float] = {}
         for o in db.get_latest_odds(m["id"], "total_games"):
@@ -107,6 +113,7 @@ def build_candidates_from_pending_matches() -> tuple[list[Candidate], dict[int, 
         # takový kandidát nepoužije pro sestavení tiketu (potřebuje odds).
         aces_est = estimate_total_aces(
             _to_float(m.get(f"a_ace_rate_{surface}")), _to_float(m.get(f"b_ace_rate_{surface}")), games_est,
+            confidence=confidence,
         )
         for selection, prob_fn in (("over", aces_est.prob_over), ("under", aces_est.prob_under)):
             cand = Candidate(
