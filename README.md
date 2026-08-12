@@ -319,6 +319,28 @@ větší posun udělala na výslovné přání uživatele, ne z appčina úsudku
 o síle důkazu. Appka doporučuje přepočítat znovu, až appka bude mít
 desítky reálných tiketů, ne jednotky.
 
+### Kurz vs. riziko (2026-08-12)
+
+Uživatel appce řekl, že kurz 1,60 je malý — chtěl kurz 1,9 až 3,0.
+Appka to ověřila na dnešních skutečných datech. Appčiny nejjistější
+picky dneska měly jistotu 84–88 %. Kurz na ně byl ale jen 1,16–1,20
+— bookmaker je viděl stejně jistě jako appka.
+
+Aby appka dosáhla kombinovaného kurzu 1,9–3,0, musela by dát do
+tiketu 5 legů. Kombinovaná jistota by klesla na ~48 % — přesně tam,
+kde appka prohrála 5 z 6 prvních tiketů (viz sekce výše).
+
+Appka dala uživateli na výběr tři cesty (jít naplno na kurz / zůstat
+u jistoty / střední cesta). Uživatel vybral **střední cestu**:
+
+- `MAX_TICKET_LEGS`: 3 → 4
+- `MIN_COMBINED_PROBABILITY` (`ticket_builder.py`): 0,45 → 0,40
+
+Na dnešních datech to appce dalo kurz 1,61 → 1,87. Kombinovaná
+jistota zůstala 56,8 % — nad appčinou původní podlahou 45 %. Appka
+celé pásmo 1,9–3,0 netrefila, ale přiblížila se. Je to vědomě vyšší
+riziko prohry, než appka měla před touhle změnou.
+
 ## Další otevřené věci
 
 - **api-tennis.com nemá bookmaker trh na esa** (stejně jako the-odds-api)

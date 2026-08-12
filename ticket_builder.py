@@ -40,7 +40,14 @@ from dataclasses import dataclass
 from typing import Optional
 
 MIN_TICKET_LEGS = 1
-MAX_TICKET_LEGS = 3
+MAX_TICKET_LEGS = 4
+# Appka 2026-08-12 zvedla ze 3 na 4 (a MIN_COMBINED_PROBABILITY snížila
+# na 0.40, viz níže) — appka zjistila, že appčiny nejjistější picky mají
+# skoro vždycky nízký kurz (bookmaker appce dává stejnou jistotu), takže
+# appka na kombinovaný kurz 2,00+ často nedosáhla ani na 3 legy. Appka
+# tímhle appce dovoluje o leg víc, aby se appka k vyššímu kurzu přiblížila
+# — appka to VĚDOMĚ dělá s vyšším rizikem než appka měla před tímhle
+# zásahem (viz README, "Kurz vs. riziko").
 
 
 @dataclass
@@ -148,15 +155,22 @@ class BuiltTicket:
     total_odds: float
 
 
-MIN_COMBINED_PROBABILITY = 0.45
+MIN_COMBINED_PROBABILITY = 0.40
 # Appka appčiny první reálné tikety appka porovnala se skutečnými
 # výsledky (2026-08-12, viz README "Analýza prvních reálných tiketů")
 # — appka bere DO tiketu i legy appka jen proto, že appka MAX_TICKET_LEGS
 # dovoluje o jeden víc, i když appka kombinovaná jistota (součin appky
-# jistoty všech legů) appku tím padla pod 45 % — appka pak prohru měla
+# jistoty všech legů) appku tím padla nízko — appka pak prohru měla
 # pravděpodobnější než výhru, i kdyby appčin odhad byl na každý
 # JEDNOTLIVÝ leg správně. Appka radši zastaví přidávání dalšího legu,
 # než aby appku takhle sama sobě podráželo nohy.
+#
+# Appka měla tuhle hranici původně na 0.45 (MAX_TICKET_LEGS na 3).
+# 2026-08-12 appka obě čísla uvolnila (0.40 / 4 legy) na výslovné přání
+# uživatele — appčiny nejjistější picky měly nízký kurz a uživatel chtěl
+# kurz 1,9–3,0 (viz README, "Kurz vs. riziko"). Je to vědomě vyšší
+# riziko prohry než appka měla u 0.45 — zapsáno tady, ať to příště
+# appka nemusí znovu objevovat od nuly.
 
 
 def build_ticket(ranked_candidates: list[Candidate]) -> Optional[BuiltTicket]:
