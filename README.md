@@ -395,6 +395,43 @@ zápasů (jeden leg appce přesáhl do zítřejšího rána, appka to bere
 jako v pořádku — pořád je to appka to samé okno 24 hodin, ne
 "cokoliv naplánované").
 
+### Favorité místo gemů (2026-08-12)
+
+Uživatel appce poslal screenshot reálné sázenky — appka do ní nahodil
+appčin gemový tiket. Appčina hranice byla 29,5 gemů, bookmaker ale na
+sázence nabízel 26,5–27,5 gemů. Nebyla to appka stejná sázka za jinou
+cenu — byla to JINÁ sázka (přísnější, hůř trefitelná). Appka to
+přepočítala appčiným modelem na skutečnou hranici bookmakera:
+appčina kombinovaná jistota klesla z 64,9 % (appčina hranice) na
+44,1 % (bookmakerova hranice).
+
+Trh výherce zápasu (match_winner) tenhle problém nemá — appka tam
+žádná hranice není, je to appka stejná sázka u kteréhokoli bookmakera.
+Uživatel appku požádal appku přesunout denní tikety čistě na favority:
+
+- appka posílá DVA tikety, oba jen z trhu výherce zápasu
+- appka nechá jen kandidáty s kurzem v pásmu **1,3–2,0** na leg
+  (příliš jistý favorit pod 1,3 appce nedává výhodu, nad 2,0 už není
+  favorit)
+- appka přidává favority podle jistoty, dokud kombinovaný kurz
+  nepřesáhne minimum **1,8**
+- MAX_TICKET_LEGS zůstává 4, appka se ho ale skoro nikdy nedotkne —
+  u favoritů appka kombinovaný kurz 1,8+ obvykle najde už na 1–2 legách
+- druhý tiket appka staví ze ZBÝVAJÍCÍCH zápasů, ať appka dva tikety
+  nikdy nesdílí appka stejný zápas
+
+Appka novou logiku implementovala v `ticket_builder.build_favorites_ticket()`.
+Starou logiku (`build_ticket`, gemový trh v `generate_daily_tickets`)
+appka nesmazala, jen ji přestala volat pro denní broadcast — je to
+funkční, reálně kalibrovaná práce, appka se k ní může vrátit, kdyby
+někdy našla zdroj kurzů na gemy odpovídající reálným bookmakerům.
+
+Ověřeno živě: appka dnešní den měla jen 1 kandidáta na výherce
+(Virtanen, kurz 1,78) — to samo o sobě nedosáhlo na 1,8, takže appka
+oba tikety vrátila jako None. Appka logiku ověřila i na širším okně
+(72 hodin) — tam appka měla 2 kandidáty (Snigur 1,60, Virtanen 1,78)
+a správně postavila tiket s kurzem 2,848.
+
 ## Další otevřené věci
 
 - **api-tennis.com nemá bookmaker trh na esa** (stejně jako the-odds-api)

@@ -172,8 +172,8 @@ def sync_odds(_: None = Depends(require_admin_key)) -> dict:
 
 
 # ------------------------------------------------------------
-# Admin — generování denních tiketů (appka posílá DVA — gemy a
-# výherce zápasu zvlášť, viz ticket_generation.generate_daily_tickets)
+# Admin — generování denních tiketů (appka posílá DVA tikety na
+# favority, z různých zápasů, viz ticket_generation.generate_daily_tickets)
 # ------------------------------------------------------------
 @app.post("/admin/daily-tickets")
 def daily_tickets(send_telegram: bool = True, _: None = Depends(require_admin_key)) -> dict:
@@ -183,7 +183,7 @@ def daily_tickets(send_telegram: bool = True, _: None = Depends(require_admin_ke
     result: dict = {}
     for ticket_type, ticket in tickets.items():
         if ticket is None:
-            result[ticket_type] = {"generated": False, "reason": "Appka nenašla ani jeden použitelný pick na tenhle trh."}
+            result[ticket_type] = {"generated": False, "reason": "Appka nenašla dost favoritů v pásmu 1,3-2,0 na kombinovaný kurz 1,8+."}
             continue
 
         entry = {"generated": True, "ticket_id": ticket["id"], "total_odds": float(ticket["total_odds"])}

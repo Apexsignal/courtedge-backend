@@ -15,12 +15,9 @@ from market_models import estimate_total_aces, estimate_total_games
 from ticket_builder import (
     Candidate,
     MarketThreshold,
-    MIN_COMBINED_PROBABILITY,
-    MIN_COMBINED_PROBABILITY_WINNER,
     SafetyContext,
-    build_ticket,
+    build_favorites_ticket,
     passes_safety_filters,
-    select_candidates,
 )
 
 DEFAULT_ACES_LINE = 20.5  # appka nemá tržní kurz na esa (viz odds_provider.py) — startovní hranice, dokud appka nemá lepší zdroj
@@ -153,29 +150,9 @@ def build_candidates_from_pending_matches() -> tuple[list[Candidate], dict[int, 
     return candidates, match_meta
 
 
-GAMES_MARKETS = {"total_games", "total_aces"}
-WINNER_MARKETS = {"match_winner"}
-
-
-def _build_and_save_ticket(
-    candidates: list[Candidate],
-    match_meta: dict[int, dict],
-    market_codes: set[str],
-    min_combined_probability: float,
-    ticket_type: str,
-    user_id: Optional[int],
-) -> Optional[dict]:
-    """Appka z jedné sady appčiných kandidátů vybere jen daný trh
-    (`market_codes`), postaví z něj tiket a uloží ho — appka to používá
-    dvakrát na volání appky generate_daily_tickets (gemy i výherce),
-    nad STEJNÝMI appka jednou spočítanými kandidáty, appka nechce
-    kandidáty počítat (ani volat api-tennis.com pro H2H) dvakrát."""
-    filtered = [c for c in candidates if c.market_code in market_codes]
-    selected = select_candidates(filtered)
-    built = build_ticket(selected, min_combined_probability=min_combined_probability)
-    if built is None:
-        return None
-
+def _save_favorites_ticket(built, match_meta: dict[int, dict], user_id: Optional[int]) -> dict:
+    """Appka uloží appka postavený tiket (BuiltTicket) do DB a obohatí
+    legy appka jmény hráčů pro render/odeslání."""
     legs_for_db = []
     legs_for_render = []
     for leg in built.legs:
@@ -191,33 +168,39 @@ def _build_and_save_ticket(
             "tourney_name": m.get("tourney_name"), "start_time": m.get("start_time"),
         })
 
-    ticket = db.save_ticket(user_id, built.total_odds, legs_for_db, ticket_type=ticket_type)
+    ticket = db.save_ticket(user_id, built.total_odds, legs_for_db, ticket_type="favorites")
     ticket["legs"] = legs_for_render
     return ticket
 
 
 def generate_daily_tickets(user_id: Optional[int] = None) -> dict[str, Optional[dict]]:
     """
-    Appka appce vrátí {"games": tiket|None, "winner": tiket|None} — DVA
-    samostatné denní tikety, ne jeden:
+    Appka appce vrátí {"favorites_1": tiket|None, "favorites_2": tiket|None}
+    — DVA samostatné denní tikety, oba jen z trhu výherce zápasu
+    (match_winner). Appka appku 2026-08-12 přesunula z gemů na favority
+    na výslovné přání uživatele (viz README, "Favorité místo gemů") —
+    appka živě zjistila, že appčin trh gemů má u skutečného bookmakera
+    jinou hranici, než appka appce ukazuje. Byla to jiná sázka, ne jen
+    jiná cena. Trh výherce zápasu žádnou hranici nemá, je to stejná
+    sázka všude.
 
-    - "games" — appka bere jen trh gemů/es (total_games/total_aces),
-      podlaha jistoty MIN_COMBINED_PROBABILITY (0,40 — viz ticket_builder.py).
-    - "winner" — appka bere jen trh výherce zápasu (match_winner),
-      nižší podlaha MIN_COMBINED_PROBABILITY_WINNER (0,35), protože
-      appka tenhle trh nikdy neumí odhadnout tak jistě jako gemy u
-      jednostranného zápasu, ale appka za to dá vyšší kurz.
-
-    Appka 2026-08-12 appku takhle rozdělila na výslovné přání uživatele
-    — appčiny nejjistější gemové picky mívají velmi nízký kurz, appka
-    nechtěla appku nutit do jedné kombinace napříč trhy, kde by appka
-    jeden trh vždycky přebil druhý (viz README, "Dva tikety denně").
+    Každý tiket appka staví přes ticket_builder.build_favorites_ticket
+    — appka nechá jen kurz appka v pásmu 1,3-2,0 na leg a appka přidává
+    favority podle jistoty, dokud appku kombinovaný kurz nepřesáhne 1,8.
+    Druhý tiket appka staví ze ZBÝVAJÍCÍCH zápasů, ať appka dva denní
+    tikety nikdy nesdílí stejný zápas.
 
     Appka kandidáty počítá JEDNOU (včetně H2H volání na api-tennis.com)
-    a použije je pro OBA tikety — ne dvakrát zvlášť.
+    a použije je pro OBA tikety.
     """
     candidates, match_meta = build_candidates_from_pending_matches()
+    winner_candidates = [c for c in candidates if c.market_code == "match_winner"]
+
+    built_1 = build_favorites_ticket(winner_candidates)
+    used_match_ids = frozenset(leg.match_id for leg in built_1.legs) if built_1 else frozenset()
+    built_2 = build_favorites_ticket(winner_candidates, exclude_match_ids=used_match_ids)
+
     return {
-        "games": _build_and_save_ticket(candidates, match_meta, GAMES_MARKETS, MIN_COMBINED_PROBABILITY, "games", user_id),
-        "winner": _build_and_save_ticket(candidates, match_meta, WINNER_MARKETS, MIN_COMBINED_PROBABILITY_WINNER, "winner", user_id),
+        "favorites_1": _save_favorites_ticket(built_1, match_meta, user_id) if built_1 else None,
+        "favorites_2": _save_favorites_ticket(built_2, match_meta, user_id) if built_2 else None,
     }

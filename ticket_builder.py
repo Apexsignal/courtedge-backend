@@ -197,6 +197,12 @@ def build_ticket(
     leg appka vezme vždycky, i kdyby byl sám pod tou hranicí — appka
     nikdy nevrátí prázdný tiket, jen kvůli tomu. Appka vrátí None,
     pokud appka nemá ani MIN_TICKET_LEGS použitelný kandidát.
+
+    Appka OD 2026-08-12 tuhle funkci pro appčin denní broadcast
+    nepoužívá (viz build_favorites_ticket níže) — appka appku nechává
+    v modulu, appka appku funkčně otestovala i reálnými daty a appka ji
+    může chtít appka znovu použít, kdyby appka měla lepší zdroj kurzů
+    na gemy (viz README, "Favorité místo gemů").
     """
     usable = [c for c in ranked_candidates if c.market_odds is not None and c.market_odds > 1.0]
     if len(usable) < MIN_TICKET_LEGS:
@@ -215,4 +221,70 @@ def build_ticket(
         combined_probability = next_combined_probability
         combined_odds *= candidate.market_odds
 
+    return BuiltTicket(legs=legs, total_odds=round(combined_odds, 3))
+
+
+FAVORITE_MIN_LEG_ODDS = 1.3
+FAVORITE_MAX_LEG_ODDS = 2.0
+FAVORITE_MIN_TICKET_ODDS = 1.8
+# Appka appku přidala 2026-08-12 na výslovné přání uživatele. Appka
+# živě zjistila (screenshot od uživatele), že appčin trh gemů má u
+# skutečného bookmakera jinou hranici, než appka ukazuje appce — je to
+# jiná sázka, ne jen jiná cena. Trh výherce zápasu tenhle problém
+# nemá. Žádná hranice tam není, je to stejná sázka u kteréhokoli
+# bookmakera. Appka proto appčin denní tiket přesouvá na favority
+# (viz build_favorites_ticket).
+#
+# Appka bere 1,3-2,0 jako rozumné pásmo pro "favorit, ne jistota".
+# Pod 1,3 appku bookmaker vidí skoro stejně jistě jako appka sama —
+# appka na tom nemá výhodu. Nad 2,0 už appka nebere hráče jako
+# favorita, appka je to spíš vyrovnaný zápas.
+
+
+def build_favorites_ticket(
+    candidates: list[Candidate],
+    exclude_match_ids: frozenset[int] = frozenset(),
+) -> Optional[BuiltTicket]:
+    """
+    Appka appku staví jen z kandidátů trhu výherce zápasu — appka to
+    zajišťuje volající (viz ticket_generation.generate_daily_tickets).
+
+    Appka nechá jen kandidáty s kurzem v pásmu FAVORITE_MIN_LEG_ODDS až
+    FAVORITE_MAX_LEG_ODDS, appka vezme jednoho nejjistějšího kandidáta
+    na zápas a appka je přidává do tiketu podle jistoty. Appka přestane
+    přidávat další leg, jakmile appku kombinovaný kurz přesáhne
+    FAVORITE_MIN_TICKET_ODDS, nebo appka narazí na MAX_TICKET_LEGS.
+    Appka vrátí None, pokud ani na MAX_TICKET_LEGS legů appka
+    nedosáhne FAVORITE_MIN_TICKET_ODDS.
+
+    `exclude_match_ids` appce dovolí postavit DRUHÝ tiket ze
+    zbývajících zápasů, ať appka dva denní tikety nikdy nesdílí
+    stejný zápas.
+    """
+    in_band = [
+        c for c in candidates
+        if c.match_id not in exclude_match_ids
+        and c.market_odds is not None
+        and FAVORITE_MIN_LEG_ODDS <= c.market_odds <= FAVORITE_MAX_LEG_ODDS
+    ]
+
+    best_per_match: dict[int, Candidate] = {}
+    for c in in_band:
+        current_best = best_per_match.get(c.match_id)
+        if current_best is None or c.model_probability > current_best.model_probability:
+            best_per_match[c.match_id] = c
+    ranked = sorted(best_per_match.values(), key=lambda c: c.model_probability, reverse=True)
+
+    legs: list[Candidate] = []
+    combined_odds = 1.0
+    for candidate in ranked:
+        if len(legs) >= MAX_TICKET_LEGS:
+            break
+        legs.append(candidate)
+        combined_odds *= candidate.market_odds
+        if combined_odds >= FAVORITE_MIN_TICKET_ODDS:
+            break
+
+    if not legs or combined_odds < FAVORITE_MIN_TICKET_ODDS:
+        return None
     return BuiltTicket(legs=legs, total_odds=round(combined_odds, 3))

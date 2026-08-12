@@ -121,17 +121,19 @@ CREATE INDEX idx_odds_match_market ON odds_snapshots (match_id, market_code, fet
 --    appka dřív měla pevné pásmo kurzu 2,00-3,00, appka to zrušila —
 --    jistota kandidátů appce vyjde přednější než konkrétní kurz).
 --
---    Appka 2026-08-12 začala posílat DVA tikety denně, každý z jiného
---    trhu (viz ticket_type) — appčiny nejjistější picky na gemy mívají
---    velmi nízký kurz (appka i trh je vidí skoro jistě), zatímco
---    výherce zápasu appka nikdy neodhadne tak jistě, ale kurz je za
---    to vyšší. Appka radši pošle OBOJÍ jako dva oddělené tikety, než
---    aby jeden trh upřednostnila před druhým v jediné kombinaci.
+--    Appka 2026-08-12 začala posílat DVA tikety denně (viz ticket_type)
+--    — appka zjistila živě, že appčin trh gemů má u skutečného
+--    bookmakera jinou hranici, než appka appce ukazuje (jiná sázka, ne
+--    jen jiná cena), zatímco trh výherce zápasu žádnou hranici nemá.
+--    Appka proto appčin denní tiket přesunula čistě na favority
+--    (match_winner, kurz 1,3-2,0 na leg, kombinovaný kurz 1,8+) —
+--    appka posílá DVA takové tikety z různých zápasů, ne jeden gemový
+--    a jeden na výherce (viz README, "Favorité místo gemů").
 -- ------------------------------------------------------------
 CREATE TABLE tickets (
     id                  BIGSERIAL PRIMARY KEY,
     user_id              BIGINT REFERENCES users(id),   -- NULL = appčin vlastní denní tiket (broadcast)
-    ticket_type            VARCHAR(20) NOT NULL DEFAULT 'games' CHECK (ticket_type IN ('games', 'winner')),
+    ticket_type            VARCHAR(20) NOT NULL DEFAULT 'favorites' CHECK (ticket_type IN ('games', 'winner', 'favorites')),
     total_odds            NUMERIC(6,3) NOT NULL CHECK (total_odds > 1.0),
     status                ticket_status_type NOT NULL DEFAULT 'pending',
     created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
