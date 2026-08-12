@@ -211,7 +211,16 @@ def get_match_by_external_id(external_id: str, tour: str) -> Optional[dict]:
         return dict(row) if row else None
 
 
-def get_pending_matches() -> list[dict]:
+DAILY_TICKET_WINDOW_HOURS = 24
+# Appka appku 2026-08-12 přidala, protože appčin denní tiket appce
+# vytáhl zápasy na ZÍTRA místo na dnešek — appka totiž syncuje zápasy
+# 3 dny dopředu (viz api_tennis_sync.py), a appka bez tohohle okna
+# brala nejjistější picky ze VŠECH naplánovaných zápasů, ne jen z
+# nejbližší appka doby. Appka radši omezí appčin výběr na následujících
+# 24 hodin, ať appka "dnešní tiket" fakt znamená zápasy na dnešek.
+
+
+def get_pending_matches(hours_ahead: int = DAILY_TICKET_WINDOW_HOURS) -> list[dict]:
     """Appka rovnou JOINuje jména a Elo/ace-rate obou hráčů — ticket_builder.py
     i ticket_telegram.py je potřebují a appka nechce N+1 dotazy navíc."""
     with get_cursor() as cur:
@@ -235,9 +244,12 @@ def get_pending_matches() -> list[dict]:
             FROM matches m
             JOIN players pa ON pa.id = m.player_a_id
             JOIN players pb ON pb.id = m.player_b_id
-            WHERE m.status = 'scheduled' AND m.start_time > now()
+            WHERE m.status = 'scheduled'
+              AND m.start_time > now()
+              AND m.start_time < now() + make_interval(hours => %s)
             ORDER BY m.start_time
-            """
+            """,
+            (hours_ahead,),
         )
         return [dict(r) for r in cur.fetchall()]
 

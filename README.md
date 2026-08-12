@@ -377,6 +377,24 @@ Ověřeno živě: appka dnešní data appce dala gemový tiket (4 legy, kurz
 1,87, jistota 56,8 %) a tiket na výherce (2 legy, kurz 2,85, jistota
 39,2 %) — appka oba appka úspěšně uložila a vyrenderovala.
 
+### Tiket na zítra místo na dnešek — oprava (2026-08-12)
+
+Uživatel appce upozornil, že appčin tiket obsahoval zápasy na ZÍTRA,
+ne na dnešek. Příčina: appka syncuje zápasy 3 dny dopředu
+(`api_tennis_sync.sync_upcoming_matches`), ale appčina
+`db.get_pending_matches()` neměla žádný horní limit na datum — appka
+brala nejjistější picky ze VŠECH naplánovaných zápasů, ne jen z
+dneška. Dnešní zápasy z větší části už začaly nebo skončily, takže
+appce v žebříčku zbyly hlavně zítřejší.
+
+Appka přidala `DAILY_TICKET_WINDOW_HOURS = 24` (`db.py`) —
+`get_pending_matches()` teď appka omezí na zápasy v následujících
+24 hodinách. Ověřeno živě: appka žebříček zápasů appce vzrostl z 6
+na 31, a appčiny nové tikety appka postavila hlavně z dnešních
+zápasů (jeden leg appce přesáhl do zítřejšího rána, appka to bere
+jako v pořádku — pořád je to appka to samé okno 24 hodin, ne
+"cokoliv naplánované").
+
 ## Další otevřené věci
 
 - **api-tennis.com nemá bookmaker trh na esa** (stejně jako the-odds-api)
