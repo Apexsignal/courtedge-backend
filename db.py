@@ -292,11 +292,11 @@ def get_latest_odds(match_id: int, market_code: str) -> list[dict]:
 # ------------------------------------------------------------
 # Tikety
 # ------------------------------------------------------------
-def save_ticket(user_id: Optional[int], total_odds: float, legs: list[dict]) -> dict:
+def save_ticket(user_id: Optional[int], total_odds: float, legs: list[dict], ticket_type: str = "games") -> dict:
     with get_cursor(commit=True) as cur:
         cur.execute(
-            "INSERT INTO tickets (user_id, total_odds) VALUES (%s, %s) RETURNING *",
-            (user_id, total_odds),
+            "INSERT INTO tickets (user_id, total_odds, ticket_type) VALUES (%s, %s, %s) RETURNING *",
+            (user_id, total_odds, ticket_type),
         )
         ticket = dict(cur.fetchone())
         for leg in legs:

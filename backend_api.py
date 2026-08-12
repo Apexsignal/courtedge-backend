@@ -172,22 +172,30 @@ def sync_odds(_: None = Depends(require_admin_key)) -> dict:
 
 
 # ------------------------------------------------------------
-# Admin — generování denního tiketu
+# Admin — generování denních tiketů (appka posílá DVA — gemy a
+# výherce zápasu zvlášť, viz ticket_generation.generate_daily_tickets)
 # ------------------------------------------------------------
 @app.post("/admin/daily-tickets")
 def daily_tickets(send_telegram: bool = True, _: None = Depends(require_admin_key)) -> dict:
     daily_user_id = os.environ.get("DAILY_TICKETS_USER_ID")
-    ticket = ticket_generation.generate_daily_ticket(user_id=int(daily_user_id) if daily_user_id else None)
-    if ticket is None:
-        return {"generated": False, "reason": "Appka nenašla platnou kombinaci 2 legů v pásmu kurzu 2,00–3,00."}
+    tickets = ticket_generation.generate_daily_tickets(user_id=int(daily_user_id) if daily_user_id else None)
 
-    if send_telegram and os.environ.get("TELEGRAM_BOT_TOKEN"):
-        try:
-            send_ticket_to_telegram({**ticket, "ticket_id": ticket["id"]})
-        except Exception as exc:
-            return {"generated": True, "ticket_id": ticket["id"], "telegram_sent": False, "telegram_error": str(exc)}
+    result: dict = {}
+    for ticket_type, ticket in tickets.items():
+        if ticket is None:
+            result[ticket_type] = {"generated": False, "reason": "Appka nenašla ani jeden použitelný pick na tenhle trh."}
+            continue
 
-    return {"generated": True, "ticket_id": ticket["id"], "total_odds": float(ticket["total_odds"])}
+        entry = {"generated": True, "ticket_id": ticket["id"], "total_odds": float(ticket["total_odds"])}
+        if send_telegram and os.environ.get("TELEGRAM_BOT_TOKEN"):
+            try:
+                send_ticket_to_telegram({**ticket, "ticket_id": ticket["id"], "ticket_type": ticket_type})
+            except Exception as exc:
+                entry["telegram_sent"] = False
+                entry["telegram_error"] = str(exc)
+        result[ticket_type] = entry
+
+    return result
 
 
 # ------------------------------------------------------------

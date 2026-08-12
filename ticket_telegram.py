@@ -22,6 +22,11 @@ MARKET_LABELS_CS = {
     "total_aces": "Počet es",
 }
 
+TICKET_TYPE_LABELS_CS = {
+    "games": "GEMY",
+    "winner": "VÝHERCI",
+}
+
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 _BUNDLED_FONT_DIR = os.path.join(_THIS_DIR, "assets", "fonts")
 _SYSTEM_FONT_DIR = "/usr/share/fonts/truetype/dejavu"
@@ -59,8 +64,10 @@ def selection_label(market_code: str, selection: str, line: float | None, player
 
 def build_ticket_caption(ticket: dict) -> str:
     total_odds = ticket.get("total_odds", 0)
+    ticket_type = ticket.get("ticket_type")
+    type_suffix = f" ({TICKET_TYPE_LABELS_CS[ticket_type].lower()})" if ticket_type in TICKET_TYPE_LABELS_CS else ""
     return (
-        f"🎾 CourtEdge tiket · kurz {total_odds:.2f}\n\n"
+        f"🎾 CourtEdge tiket{type_suffix} · kurz {total_odds:.2f}\n\n"
         "Appka jen doporučuje — sázku si klikáš sám, kde chceš.\n\n"
         "Není to jistota. 18+, sázej jen to, co si můžeš dovolit prohrát."
     )
@@ -107,8 +114,13 @@ def render_ticket(ticket: dict) -> Image.Image:
     img = Image.new("RGB", (WIDTH, height), BG)
     draw = ImageDraw.Draw(img)
 
+    ticket_type = ticket.get("ticket_type")
+    subtitle = "TENISOVÝ TIKET"
+    if ticket_type in TICKET_TYPE_LABELS_CS:
+        subtitle = f"TENISOVÝ TIKET · {TICKET_TYPE_LABELS_CS[ticket_type]}"
+
     draw.text((PADDING, PADDING), "CourtEdge", font=f_title, fill=ACCENT)
-    draw.text((PADDING, PADDING + 44), "TENISOVÝ TIKET", font=f_h2, fill=TEXT)
+    draw.text((PADDING, PADDING + 44), subtitle, font=f_h2, fill=TEXT)
 
     total_odds = ticket.get("total_odds", 0)
     draw.text(

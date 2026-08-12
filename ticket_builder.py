@@ -172,18 +172,31 @@ MIN_COMBINED_PROBABILITY = 0.40
 # riziko prohry než appka měla u 0.45 — zapsáno tady, ať to příště
 # appka nemusí znovu objevovat od nuly.
 
+MIN_COMBINED_PROBABILITY_WINNER = 0.35
+# Appka trh výherce zápasu (match_winner) má jinou přirozenou
+# jistotu než gemy — appčin bezpečnostní práh pro tenhle trh je 0,62
+# (market_thresholds v DB), takže appka dva favorité těsně nad prahem
+# sami o sobě dají kombinovanou jistotu kolem 38 %. Appka proto pro
+# tiket na výherce (viz ticket_generation.generate_daily_tickets) drží
+# NIŽŠÍ podlahu než appka má pro gemový tiket — jinak by appka tiket
+# "dva favorité" skoro nikdy nesestavila.
 
-def build_ticket(ranked_candidates: list[Candidate]) -> Optional[BuiltTicket]:
+
+def build_ticket(
+    ranked_candidates: list[Candidate],
+    min_combined_probability: float = MIN_COMBINED_PROBABILITY,
+) -> Optional[BuiltTicket]:
     """
     Appka bere kandidáty odshora žebříčku (nejjistější první, jeden na
     zápas — appka to očekává už deduplikované přes select_candidates) a
     přidává je do tiketu JEDEN PO DRUHÉM, dokud appku nedojdou kandidáti,
     appka nenarazí na MAX_TICKET_LEGS, nebo by další leg appku stáhl
-    kombinovanou jistotu pod MIN_COMBINED_PROBABILITY (viz konstanta
-    výše). První leg appka vezme vždycky, i kdyby byl sám pod tou
-    hranicí — appka nikdy nevrátí prázdný tiket, jen kvůli tomu.
-    Appka vrátí None, pokud appka nemá ani MIN_TICKET_LEGS použitelný
-    kandidát.
+    kombinovanou jistotu pod `min_combined_probability` (appka bere
+    MIN_COMBINED_PROBABILITY jako výchozí, appka pro tiket na výherce
+    volá s MIN_COMBINED_PROBABILITY_WINNER, viz konstanta výše). První
+    leg appka vezme vždycky, i kdyby byl sám pod tou hranicí — appka
+    nikdy nevrátí prázdný tiket, jen kvůli tomu. Appka vrátí None,
+    pokud appka nemá ani MIN_TICKET_LEGS použitelný kandidát.
     """
     usable = [c for c in ranked_candidates if c.market_odds is not None and c.market_odds > 1.0]
     if len(usable) < MIN_TICKET_LEGS:
@@ -196,7 +209,7 @@ def build_ticket(ranked_candidates: list[Candidate]) -> Optional[BuiltTicket]:
         if len(legs) >= MAX_TICKET_LEGS:
             break
         next_combined_probability = combined_probability * candidate.model_probability
-        if legs and next_combined_probability < MIN_COMBINED_PROBABILITY:
+        if legs and next_combined_probability < min_combined_probability:
             break
         legs.append(candidate)
         combined_probability = next_combined_probability

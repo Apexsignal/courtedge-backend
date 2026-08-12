@@ -52,8 +52,9 @@ ve vlastním repu bez sdílených závislostí.
 
 Na rozdíl od ApexSignalu appka NEMÁ žádné klientské tlačítko "vygeneruj
 tiket" (tokeny, neomezený tarif) — CourtEdge je čistě pasivní odběr:
-appka jednou denně sama, na appčino pozadí, vygeneruje JEDEN tiket a
-rozešle ho broadcastem do appčina Telegram kanálu. Zákazník appku nijak
+appka jednou denně sama, na appčino pozadí, vygeneruje DVA tikety
+(gemový a na výherce zápasu, viz "Dva tikety denně" níže) a rozešle
+je broadcastem do appčina Telegram kanálu. Zákazník appku nijak
 neovládá, jen ji odebírá.
 
 ## Denní automatizace
@@ -340,6 +341,41 @@ Na dnešních datech to appce dalo kurz 1,61 → 1,87. Kombinovaná
 jistota zůstala 56,8 % — nad appčinou původní podlahou 45 %. Appka
 celé pásmo 1,9–3,0 netrefila, ale přiblížila se. Je to vědomě vyšší
 riziko prohry, než appka měla před touhle změnou.
+
+### Dva tikety denně (2026-08-12)
+
+Uživatel appce navrhl jiné řešení stejného problému: místo jednoho
+tiketu appka radši pošle rovnou dva. Appka porovnala appčiny dva
+nejjistější trhy dneška:
+
+- **Gemy** — jistota 84–88 % na leg, ale kurz jen 1,16–1,20 (appka i
+  trh vidí jednostranný zápas stejně jistě).
+- **Výherce zápasu** — jistota jen 62,6 % na leg, ale kurz 1,60–1,78
+  (appka nikdy neumí odhadnout, kdo vyhraje, tak jistě jako appka umí
+  odhadnout gemy jednostranného zápasu).
+
+Appka appku rozdělila na DVA samostatné tikety (`ticket_type` v
+`tickets` — `'games'` / `'winner'`), appka je posílá oba:
+
+- `ticket_generation.generate_daily_tickets()` nahradilo
+  `generate_daily_ticket()` — appka kandidáty spočítá JEDNOU (včetně
+  H2H volání na api-tennis.com) a postaví z nich OBA tikety, ne
+  dvakrát zvlášť.
+- Gemový tiket appka staví ze stejné podlahy jako appka měla dřív
+  (`MIN_COMBINED_PROBABILITY` = 0,40).
+- Appka pro tiket na výherce přidala NOVOU, nižší podlahu
+  (`MIN_COMBINED_PROBABILITY_WINNER` = 0,35) — appka trh výherce má
+  bezpečnostní práh 0,62 (viz `market_thresholds`), takže appka dva
+  favorité těsně nad prahem sami dají kombinovanou jistotu kolem
+  38 % — appka vyšší podlahu by appce tenhle typ tiketu skoro nikdy
+  nesestavila.
+- `/admin/daily-tickets` appka teď posílá OBA tikety na Telegram,
+  každý s vlastní popiskou ("GEMY" / "VÝHERCI" v
+  `ticket_telegram.py`).
+
+Ověřeno živě: appka dnešní data appce dala gemový tiket (4 legy, kurz
+1,87, jistota 56,8 %) a tiket na výherce (2 legy, kurz 2,85, jistota
+39,2 %) — appka oba appka úspěšně uložila a vyrenderovala.
 
 ## Další otevřené věci
 
