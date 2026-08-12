@@ -89,13 +89,13 @@ def upsert_player(record) -> None:
                 elo_overall, elo_hard, elo_clay, elo_grass, elo_carpet,
                 matches_played_total, matches_played_12mo,
                 ace_rate_hard, ace_rate_clay, ace_rate_grass, ace_rate_carpet,
-                recent_retirements_12mo, last_match_date, updated_at
+                recent_retirements_60d, last_match_date, updated_at
             ) VALUES (
                 %(external_id)s, %(tour)s, %(full_name)s,
                 %(elo_overall)s, %(elo_hard)s, %(elo_clay)s, %(elo_grass)s, %(elo_carpet)s,
                 %(matches_played_total)s, %(matches_played_12mo)s,
                 %(ace_rate_hard)s, %(ace_rate_clay)s, %(ace_rate_grass)s, %(ace_rate_carpet)s,
-                %(recent_retirements_12mo)s, %(last_match_date)s, now()
+                %(recent_retirements_60d)s, %(last_match_date)s, now()
             )
             ON CONFLICT (external_id, tour) DO UPDATE SET
                 full_name = EXCLUDED.full_name,
@@ -110,7 +110,7 @@ def upsert_player(record) -> None:
                 ace_rate_clay = EXCLUDED.ace_rate_clay,
                 ace_rate_grass = EXCLUDED.ace_rate_grass,
                 ace_rate_carpet = EXCLUDED.ace_rate_carpet,
-                recent_retirements_12mo = EXCLUDED.recent_retirements_12mo,
+                recent_retirements_60d = EXCLUDED.recent_retirements_60d,
                 last_match_date = EXCLUDED.last_match_date,
                 updated_at = now()
             """,
@@ -129,7 +129,7 @@ def upsert_player(record) -> None:
                 "ace_rate_clay": record.ace_rate_clay,
                 "ace_rate_grass": record.ace_rate_grass,
                 "ace_rate_carpet": record.ace_rate_carpet,
-                "recent_retirements_12mo": record.recent_retirements_12mo,
+                "recent_retirements_60d": record.recent_retirements_60d,
                 "last_match_date": record.last_match_date,
             },
         )
@@ -233,14 +233,14 @@ def get_pending_matches(hours_ahead: int = DAILY_TICKET_WINDOW_HOURS) -> list[di
                    pa.ace_rate_hard AS a_ace_rate_hard, pa.ace_rate_clay AS a_ace_rate_clay,
                    pa.ace_rate_grass AS a_ace_rate_grass, pa.ace_rate_carpet AS a_ace_rate_carpet,
                    pa.matches_played_12mo AS a_matches_played_12mo, pa.matches_played_total AS a_matches_played_total,
-                   pa.recent_retirements_12mo AS a_recent_retirements,
+                   pa.recent_retirements_60d AS a_recent_retirements,
                    pb.external_id AS b_external_id,
                    pb.full_name AS player_b_name, pb.elo_overall AS b_elo_overall,
                    pb.elo_hard AS b_elo_hard, pb.elo_clay AS b_elo_clay, pb.elo_grass AS b_elo_grass, pb.elo_carpet AS b_elo_carpet,
                    pb.ace_rate_hard AS b_ace_rate_hard, pb.ace_rate_clay AS b_ace_rate_clay,
                    pb.ace_rate_grass AS b_ace_rate_grass, pb.ace_rate_carpet AS b_ace_rate_carpet,
                    pb.matches_played_12mo AS b_matches_played_12mo, pb.matches_played_total AS b_matches_played_total,
-                   pb.recent_retirements_12mo AS b_recent_retirements
+                   pb.recent_retirements_60d AS b_recent_retirements
             FROM matches m
             JOIN players pa ON pa.id = m.player_a_id
             JOIN players pb ON pb.id = m.player_b_id

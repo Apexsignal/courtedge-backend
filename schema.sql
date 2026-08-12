@@ -60,7 +60,7 @@ CREATE TABLE players (
     ace_rate_grass           NUMERIC(6,4),
     ace_rate_carpet          NUMERIC(6,4),
 
-    recent_retirements_12mo INTEGER NOT NULL DEFAULT 0,   -- bezpečnostní filtr — vyřazuje hráče s nedávnou historií skreče
+    recent_retirements_60d  INTEGER NOT NULL DEFAULT 0,   -- bezpečnostní filtr — vyřazuje zápas, pokud měl kterýkoli hráč skreč za posledních 60 dní (appka 2026-08-12 zkrátila z 12 měsíců — za rok má skreč skoro každý aktivní hráč, appka tím vyřazovala skoro všechny favority)
     last_match_date          DATE,
 
     updated_at               TIMESTAMPTZ NOT NULL DEFAULT now(),

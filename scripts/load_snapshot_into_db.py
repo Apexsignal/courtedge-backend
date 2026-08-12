@@ -54,7 +54,7 @@ def main() -> None:
             ace_rate_clay=p["ace_rate_clay"],
             ace_rate_grass=p["ace_rate_grass"],
             ace_rate_carpet=p["ace_rate_carpet"],
-            recent_retirements_12mo=p["recent_retirements_12mo"],
+            recent_retirements_60d=p["recent_retirements_60d"],
             last_match_date=_to_date(p["last_match_date"]),
         )
         db.upsert_player(record)

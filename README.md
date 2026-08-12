@@ -432,8 +432,44 @@ oba tikety vrátila jako None. Appka logiku ověřila i na širším okně
 (72 hodin) — tam appka měla 2 kandidáty (Snigur 1,60, Virtanen 1,78)
 a správně postavila tiket s kurzem 2,848.
 
+### Skreč vyřazovala skoro všechny favority — zkrácení okna (2026-08-12)
+
+Appka zjistila, proč měla jen 1 favorita. Bezpečnostní filtr appku
+vyřazoval, pokud měl skreč za posledních 12 měsíců KTERÝKOLI z hráčů
+— i soupeř favorita, i kdyby to bylo před 11 měsíci. Appka to
+změřila na dnešních datech: appka měla 10 favoritů nad 62% jistotou,
+appka filtr vyřadil 9 z nich kvůli skreči.
+
+Uživatel appce řekl: vyřaď jen skreč z posledních 2 měsíců. Appka to
+implementovala:
+
+- `data_ingest.py`: nová konstanta `RETIREMENT_WINDOW_DAYS = 60`,
+  appka ji počítá odděleně od `matches_played_12mo` (ten zůstává na
+  365 dnech).
+- appka přejmenovala sloupec `recent_retirements_12mo` na
+  `recent_retirements_60d` (schema.sql, db.py, data_ingest.py,
+  scripts/load_snapshot_into_db.py) — starý název appce lhal o tom,
+  co appka číslo znamená.
+
+Appčina databáze měla staré počty skreče, spočítané na 12měsíčním
+okně. Appka nepřepočítávala celý historický import znovu — trvalo by
+to hodiny. Místo toho appka udělala cílený přepočet jen pro hráče v
+dnešních zápasech. Appka stáhla fixtures za posledních 60 dní
+(7denní okna, 18 volání na api-tennis.com) a aktualizovala jejich
+`recent_retirements_60d` podle skutečných dat.
+
+Po týhle opravě appka dostala OBA tikety (kurz 2,42 a 2,33) místo
+appka None.
+
 ## Další otevřené věci
 
+- **`recent_retirements_60d` appka má aktuální jen u hráčů z dnešních
+  zápasů** (cílený přepočet, viz "Skreč vyřazovala skoro všechny
+  favority" výše) — zbytek appčiny databáze (přes 3000 hráčů z
+  historického importu) má pořád starou hodnotu spočítanou na
+  12měsíčním okně. Appka to opraví buď při dalším plném historickém
+  přepočtu, nebo appka může spustit ten samý cílený skript znovu na
+  širší množinu hráčů, kdyby to appka potřebovala dřív.
 - **api-tennis.com nemá bookmaker trh na esa** (stejně jako the-odds-api)
   — appka na trh `total_aces` počítá jen vlastní pravděpodobnost, bez
   tržního kurzu. `ticket_builder.py` takový leg do tiketu nezahrne

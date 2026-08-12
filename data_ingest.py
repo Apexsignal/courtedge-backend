@@ -40,6 +40,14 @@ from elo_model import EloEngine
 RETIREMENT_MARKERS = ("RET", "W/O", "WO", "DEF")
 SURFACE_MAP = {"Hard": "hard", "Clay": "clay", "Grass": "grass", "Carpet": "carpet"}
 RECENT_WINDOW_DAYS = 365
+RETIREMENT_WINDOW_DAYS = 60
+# Appka měla skreč na stejných 365 dnech jako odehrané zápasy. Appka
+# to 2026-08-12 zkrátila na 60 dní na přání uživatele — filtr na
+# 365 dní appce vyřadil skoro každého aktivního hráče (skreč za
+# sezónu není nic výjimečného), takže appka skoro nikdy nenašla
+# použitelného favorita. Skreč před 2 měsíci pořád něco říká o
+# aktuálním zdraví hráče, skreč před rokem už appce o dnešním
+# zápasu neříká skoro nic.
 
 
 @dataclass
@@ -168,7 +176,7 @@ class PlayerRecord:
     ace_rate_clay: Optional[float]
     ace_rate_grass: Optional[float]
     ace_rate_carpet: Optional[float]
-    recent_retirements_12mo: int
+    recent_retirements_60d: int
     last_match_date: Optional[date]
 
 
@@ -206,7 +214,9 @@ def build_player_ratings(matches: list[RawMatch], tour: str, as_of: Optional[dat
         # jen surface-specific rating se neaktualizuje).
         engine.process_match(m.winner_id, m.loser_id, m.surface, m.tourney_level)
 
-    cutoff = (as_of or latest_date or date.today()) - timedelta(days=RECENT_WINDOW_DAYS)
+    today = as_of or latest_date or date.today()
+    cutoff = today - timedelta(days=RECENT_WINDOW_DAYS)
+    retirement_cutoff = today - timedelta(days=RETIREMENT_WINDOW_DAYS)
     ratings = engine.all_ratings()
 
     records: list[PlayerRecord] = []
@@ -228,7 +238,7 @@ def build_player_ratings(matches: list[RawMatch], tour: str, as_of: Optional[dat
                 ace_rate_clay=acc.ace_rate("clay"),
                 ace_rate_grass=acc.ace_rate("grass"),
                 ace_rate_carpet=acc.ace_rate("carpet"),
-                recent_retirements_12mo=acc.retirements_since(cutoff),
+                recent_retirements_60d=acc.retirements_since(retirement_cutoff),
                 last_match_date=acc.last_match_date,
             )
         )
