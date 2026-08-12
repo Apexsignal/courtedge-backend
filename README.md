@@ -271,11 +271,53 @@ postaví i tak, jen bez H2H/únava úpravy pro daný zápas.
 Appka konstanty (`FATIGUE_ELO_PER_EXTRA_MATCH`, `LONG_LAYOFF_DAYS`,
 `LAYOFF_CONFIDENCE_MULTIPLIER`) jsou zatím hrubý odhad — appka je
 zatím neměla na čem zpětně otestovat (backtest_calibration.py appka
-zatím nemá zdroj H2H/rozpisu zápasů v historickém CSV formátu). Appka
-logiku ověřila jen jednotkovými testy proti zdokumentovanému tvaru
-odpovědi `get_H2H`, NE proti živému volání (appka v tomhle běhu neměla
-po ruce platný `APITENNIS_KEY`) — appka doporučuje ověřit první reálné
-volání, až appka příště poběží s klíčem.
+zatím nemá zdroj H2H/rozpisu zápasů v historickém CSV formátu).
+
+**Update 2026-08-12:** appka dostala platný `APITENNIS_KEY` a ověřila
+`get_H2H` živě — appka vrací skutečná data přesně v appka zdokumentovaném
+tvaru (např. appka dohledala reálnou dvojici s H2H historií 3-4 ze 7
+vzájemných zápasů). Appka logiku i živé volání teď považuje za ověřené.
+
+### Analýza prvních reálných tiketů (2026-08-12)
+
+Appka poslala uživateli 6 tiketů v průběhu 11.–12. 8. Uživatel appce
+nahlásil: vyhrál jen první tiket, ten appka poslala PŘED kalibrací
+(19:33). Appka si sehnala `APITENNIS_KEY` a dohledala skutečné
+výsledky přes api-tennis.com. Tabulka appčiných reálných predikcí
+proti realitě (všech 6 zápasů bylo hard/bo3):
+
+| Zápas | Appka tipla | Jistota appky | Skutečný počet gemů | Trefeno |
+|---|---|---|---|---|
+| Damm – Sakellaridis | pod 25,5 | 69–89 % | 22 | ano |
+| Merida Aguilar – Tien | pod 28,5/29,5/30,5 | 81–98 % | 17 | ano |
+| Korneeva – Lepchenko | nad 18,0 | 72 % | 16 | ne |
+| Shimabukuro – Dellien | nad 17,0/17,5 | 73–76 % | 16 | ne |
+| Salkova – Blinkova | nad 19,0 | 69 % | 19 | ne (přesně na hraně) |
+| Trungelliti – Ofner | pod 25,5 | 65 % | 32 | ne, velký omyl |
+
+Appka z toho zjistila dvě různé věci a opravila appku obě:
+
+**1. Appka kombinovala moc legů.** Appka bere 1 až 3 nejjistější picky
+a násobí jejich kurz, ale appka MUSÍ trefit VŠECHNY legy, aby tiket
+vyhrál — appčina kombinovaná jistota (součin jistoty legů) appce u
+appčiných 6 tiketů klesla z 87 % (tiket #1, přehnaně sebevědomý starý
+model) až na 40 % (tiket #6, 3 legy po kalibraci). Appka přidala do
+`ticket_builder.build_ticket()` `MIN_COMBINED_PROBABILITY = 0.45` —
+appka přestane přidávat další leg, jakmile by appku kombinovaná
+jistota stáhl pod tuhle hranici. První leg appka vezme vždycky, i
+kdyby byl sám pod ní.
+
+**2. Appčin baseline pro gemy byl moc vysoko.** appka "nad" tipy
+netrefila 0 ze 4, "pod" tipy trefila 5 z 6 (jediný omyl byl
+Trungelliti–Ofner, plný třísetový zápas na 32 gemů). Appka snížila
+`BASELINE_GAMES[("hard", 3)]` v `market_models.py` z 22,9 na 21,5.
+
+Appka POCTIVĚ přiznává: 6 zápasů je proti appčinu backtestu na 6184
+zápasech statisticky zanedbatelný vzorek — čistě podle váhy dat by se
+baseline měl posunout o zlomek bodu, ne o 1,4 gemu. Appka tenhle
+větší posun udělala na výslovné přání uživatele, ne z appčina úsudku
+o síle důkazu. Appka doporučuje přepočítat znovu, až appka bude mít
+desítky reálných tiketů, ne jednotky.
 
 ## Další otevřené věci
 

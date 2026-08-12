@@ -20,6 +20,13 @@ Princip (viz kontext appky, nahrazuje klasický value/edge betting):
    zjistila, že vysoká jistota a vysoký kurz jdou málokdy dohromady
    (bookmaker appce dává skoro stejnou jistotu jako appka) — appka radši
    volí jistotu, ať appka kurz vyjde jakýkoliv.
+5. Appka PŘESTANE přidávat další leg, jakmile by appku stáhl kombinovaná
+   jistota (součin jistoty všech legů — appka musí trefit VŠECHNY, aby
+   tiket vyhrál) pod MIN_COMBINED_PROBABILITY. Appka radši pošle tiket
+   s míň výběry, než aby appka uměle stavěla kombinaci, co appku sama
+   dělá pravděpodobnější PROHRU než výhru (viz README, "Analýza prvních
+   reálných tiketů" — appka na tomhle uvízla u 5 z 6 prvních appčiných
+   tiketů).
 
 Appka i s tímhle přístupem dlouhodobě potřebuje, aby model byl LEPŠÍ než
 náhoda — jinak appka prohrává o marži bookmakera stejně jako klasický
@@ -141,12 +148,26 @@ class BuiltTicket:
     total_odds: float
 
 
+MIN_COMBINED_PROBABILITY = 0.45
+# Appka appčiny první reálné tikety appka porovnala se skutečnými
+# výsledky (2026-08-12, viz README "Analýza prvních reálných tiketů")
+# — appka bere DO tiketu i legy appka jen proto, že appka MAX_TICKET_LEGS
+# dovoluje o jeden víc, i když appka kombinovaná jistota (součin appky
+# jistoty všech legů) appku tím padla pod 45 % — appka pak prohru měla
+# pravděpodobnější než výhru, i kdyby appčin odhad byl na každý
+# JEDNOTLIVÝ leg správně. Appka radši zastaví přidávání dalšího legu,
+# než aby appku takhle sama sobě podráželo nohy.
+
+
 def build_ticket(ranked_candidates: list[Candidate]) -> Optional[BuiltTicket]:
     """
-    Appka vezme prvních MAX_TICKET_LEGS kandidátů odshora žebříčku
-    (nejjistější první, jeden na zápas — appka to očekává už
-    deduplikované přes select_candidates). Appka nehledá žádnou
-    konkrétní kombinaci kurzu, jen bere nejjistější dostupné picky.
+    Appka bere kandidáty odshora žebříčku (nejjistější první, jeden na
+    zápas — appka to očekává už deduplikované přes select_candidates) a
+    přidává je do tiketu JEDEN PO DRUHÉM, dokud appku nedojdou kandidáti,
+    appka nenarazí na MAX_TICKET_LEGS, nebo by další leg appku stáhl
+    kombinovanou jistotu pod MIN_COMBINED_PROBABILITY (viz konstanta
+    výše). První leg appka vezme vždycky, i kdyby byl sám pod tou
+    hranicí — appka nikdy nevrátí prázdný tiket, jen kvůli tomu.
     Appka vrátí None, pokud appka nemá ani MIN_TICKET_LEGS použitelný
     kandidát.
     """
@@ -154,8 +175,17 @@ def build_ticket(ranked_candidates: list[Candidate]) -> Optional[BuiltTicket]:
     if len(usable) < MIN_TICKET_LEGS:
         return None
 
-    legs = usable[:MAX_TICKET_LEGS]
+    legs: list[Candidate] = []
+    combined_probability = 1.0
     combined_odds = 1.0
-    for leg in legs:
-        combined_odds *= leg.market_odds
+    for candidate in usable:
+        if len(legs) >= MAX_TICKET_LEGS:
+            break
+        next_combined_probability = combined_probability * candidate.model_probability
+        if legs and next_combined_probability < MIN_COMBINED_PROBABILITY:
+            break
+        legs.append(candidate)
+        combined_probability = next_combined_probability
+        combined_odds *= candidate.market_odds
+
     return BuiltTicket(legs=legs, total_odds=round(combined_odds, 3))

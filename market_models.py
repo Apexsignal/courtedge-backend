@@ -50,6 +50,28 @@ pro appka POVRCH TRÁVA je proto pravděpodobně mírně nadhodnocené
 (Wimbledon appka kontaminoval "bo3 tráva" koš zápasy, co appka měly
 mnohem víc gemů, protože byly bo5) — appka tam vzala konzervativnější
 hodnotu, ne appka syrové naměřené číslo.
+
+## Reálná korekce po prvních appčiných tiketech (2026-08-12)
+
+Appka appčiných prvních 6 reálných tiketů porovnala se skutečnými
+výsledky (api-tennis.com, zpětně dohledáno). Všech 6 unikátních
+zápasů bylo hard/bo3 (Cincinnati + Montreal) — skutečný počet gemů:
+22, 17, 16, 16, 19, 32 (průměr 20,3 — appka měla baseline 22,9).
+
+Appka VŠECHNY "nad" tipy netrefila (0 ze 4), appka VŠECHNY "pod" tipy
+trefila (5 z 6, jediný omyl byl Trungelliti–Ofner, appka čekala rychlý
+zápas a padlo to na 32 gemů v plném třísetovém boji). Appka appčin
+baseline pro hard/bo3 byl systematicky moc vysoko — appka ho snížila
+z 22,9 na 21,5.
+
+Appka ví, že 6 zápasů je proti appčinu backtestu na 6184 zápasech
+statisticky zanedbatelný vzorek — čistě podle váhy dat by tohle appku
+mělo posunout jen o zlomek bodu, ne o 1,4 gemu. Appka tenhle větší
+posun udělala na appka výslovné přání uživatele appky, ne appka
+z vlastního úsudku o síle důkazu — appka to appce zapisuje, ať appka
+příště ví, proč tohle číslo neodpovídá čistě backtestu. Appka
+doporučuje přepočítat znovu, až appka bude mít víc reálných tiketů
+(desítky, ne jednotky).
 """
 from __future__ import annotations
 
@@ -65,7 +87,7 @@ from typing import Optional
 # proporčně appka ze starého poměru bo5/bo3 (~1,64×), dokud appka
 # nespustí čistý backtest po opravě best_of detekce.
 BASELINE_GAMES = {
-    ("hard", 3): 22.9,
+    ("hard", 3): 21.5,  # appka snížila z 22,9 po 6 reálných appčiných tiketech (viz "Reálná korekce" výše) — backtestová hodnota byla 22,9
     ("hard", 5): 37.5,
     ("clay", 3): 23.2,
     ("clay", 5): 38.1,
