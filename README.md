@@ -497,12 +497,33 @@ picku. Appka appku poslechla:
   — appka appce vrátí jeden tiket, ne dva.
 - `build_favorites_ticket()` dostala parametr `num_legs`
   (`ticket_builder.DAILY_TICKET_LEGS = 2`) — appka vezme dva
-  nejjistější favority z RŮZNÝCH zápasů v pásmu 1,3–2,0 a spojí je
-  do jednoho tiketu.
+  nejjistější favority z RŮZNÝCH zápasů v pásmu kurzu appka na leg
+  (appka pásmo appka zpřísnila hned další den, viz sekce níže) a
+  spojí je do jednoho tiketu.
 
 Appka tady znovu připomíná varování výš: kombinovaný tiket musí
 trefit OBA legy. Šance na výhru celého tiketu je proto nižší než
 jistota lepšího picku samotného.
+
+### Přísnější výběr favoritů (2026-08-13, třetí kolo)
+
+Uživatel appce řekl, že dnešní tiket je lepší než včerejší. Zeptal
+se, jestli appka výběr může zpřísnit ještě víc.
+
+Appka to ověřila na dnešních 5 kandidátech. Top 2 picky (Shelton
+75,4 %, Draper 74,0 %) zůstaly stejné, ať appka zpřísní, nebo ne.
+Appka tedy mohla zpřísnit bez ztráty dnešního tiketu.
+
+Dvě změny:
+
+- appčina vlastní jistota (`market_thresholds.min_confidence` pro
+  `match_winner`): appka z 0,62 na 0,65.
+- appka `FAVORITE_MAX_LEG_ODDS` (`ticket_builder.py`): appka z 2,0
+  na 1,7.
+
+Kurz 1,7 znamená, že trh odhaduje hráči zhruba 59% šanci. Kurz 2,0
+jen 50 %. Appka radši bere picky, kde hráče vidí jistě i trh, ne jen
+appčin model.
 
 ## Další otevřené věci
 

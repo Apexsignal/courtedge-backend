@@ -225,17 +225,18 @@ def build_ticket(
 
 
 FAVORITE_MIN_LEG_ODDS = 1.3
-FAVORITE_MAX_LEG_ODDS = 2.0
+FAVORITE_MAX_LEG_ODDS = 1.7
 # Appka to přidala 2026-08-12 na přání uživatele. Appka živě zjistila
 # (screenshot od uživatele), že appčin trh gemů má u skutečného
 # bookmakera jinou hranici, než appka ukazuje — je to jiná sázka, ne
 # jen jiná cena. Trh výherce zápasu tenhle problém nemá — žádná
 # hranice, stejná sázka u kteréhokoli bookmakera.
 #
-# 1,3-2,0 je rozumné pásmo pro "favorit, ne jistota". Pod 1,3 vidí
-# bookmaker hráče skoro stejně jistě jako appka — appka na tom nemá
-# výhodu. Nad 2,0 už appka hráče nebere jako favorita, je to spíš
-# vyrovnaný zápas.
+# Appka měla horní hranici původně na 2,0, appka ji 2026-08-13 zpřísnila
+# na 1,7 na přání uživatele — kurz 1,7 znamená, že trh odhaduje hráči
+# zhruba 59% šanci, kurz 2,0 jen 50 %. Appka radši bere picky, kde
+# hráče vidí jistě i trh, ne jen appčin model. Pod 1,3 vidí bookmaker
+# hráče skoro stejně jistě jako appka — appka na tom nemá výhodu.
 
 # 2026-08-13, verze 1: appka zkusila jeden pick na tiket, žádné
 # kombinování. Appka živě ověřila, že jednotlivé picky trefovaly
