@@ -150,9 +150,34 @@ def build_candidates_from_pending_matches() -> tuple[list[Candidate], dict[int, 
     return candidates, match_meta
 
 
-def _save_favorites_ticket(built, match_meta: dict[int, dict], user_id: Optional[int]) -> dict:
-    """Appka uloží appka postavený tiket (BuiltTicket) do DB a obohatí
-    legy appka jmény hráčů pro render/odeslání."""
+def generate_daily_ticket(user_id: Optional[int] = None) -> Optional[dict]:
+    """
+    Appka vrátí JEDEN denní tiket, postavený jen z trhu výherce zápasu
+    (match_winner) — appka appku 2026-08-12 přesunula z gemů na
+    favority (viz README, "Favorité místo gemů") a appka appku
+    2026-08-13 dvakrát předělala appčin počet legů (viz README, "Jeden
+    pick na tiket" a "Zpátky na dva tipy"):
+
+    - appka nejdřív zkusila dva samostatné tikety po jednom picku,
+    - appka teď staví JEDEN tiket ze DVOU nejjistějších favoritů
+      (ticket_builder.DAILY_TICKET_LEGS), z RŮZNÝCH zápasů, s kurzem
+      1,3-2,0 na leg.
+
+    Appka musí trefit OBA legy, aby tiket vyhrál — appčina šance na
+    výhru celého tiketu je proto nižší než appčina jistota lepšího
+    picku samotného (viz ticket_builder.py, docstring u
+    build_favorites_ticket).
+
+    Appka vrátí None, pokud nemá v appčině 24hodinovém okně ani
+    jednoho kandidáta v pásmu 1,3-2,0.
+    """
+    candidates, match_meta = build_candidates_from_pending_matches()
+    winner_candidates = [c for c in candidates if c.market_code == "match_winner"]
+
+    built = build_favorites_ticket(winner_candidates)
+    if built is None:
+        return None
+
     legs_for_db = []
     legs_for_render = []
     for leg in built.legs:
@@ -171,36 +196,3 @@ def _save_favorites_ticket(built, match_meta: dict[int, dict], user_id: Optional
     ticket = db.save_ticket(user_id, built.total_odds, legs_for_db, ticket_type="favorites")
     ticket["legs"] = legs_for_render
     return ticket
-
-
-def generate_daily_tickets(user_id: Optional[int] = None) -> dict[str, Optional[dict]]:
-    """
-    Appka appce vrátí {"favorites_1": tiket|None, "favorites_2": tiket|None}
-    — DVA samostatné denní tikety, oba jen z trhu výherce zápasu
-    (match_winner). Appka appku 2026-08-12 přesunula z gemů na favority
-    na výslovné přání uživatele (viz README, "Favorité místo gemů") —
-    appka živě zjistila, že appčin trh gemů má u skutečného bookmakera
-    jinou hranici, než appka appce ukazuje. Byla to jiná sázka, ne jen
-    jiná cena. Trh výherce zápasu žádnou hranici nemá, je to stejná
-    sázka všude.
-
-    Každý tiket appka staví přes ticket_builder.build_favorites_ticket
-    — appka nechá jen kurz appka v pásmu 1,3-2,0 na leg a appka přidává
-    favority podle jistoty, dokud appku kombinovaný kurz nepřesáhne 1,8.
-    Druhý tiket appka staví ze ZBÝVAJÍCÍCH zápasů, ať appka dva denní
-    tikety nikdy nesdílí stejný zápas.
-
-    Appka kandidáty počítá JEDNOU (včetně H2H volání na api-tennis.com)
-    a použije je pro OBA tikety.
-    """
-    candidates, match_meta = build_candidates_from_pending_matches()
-    winner_candidates = [c for c in candidates if c.market_code == "match_winner"]
-
-    built_1 = build_favorites_ticket(winner_candidates)
-    used_match_ids = frozenset(leg.match_id for leg in built_1.legs) if built_1 else frozenset()
-    built_2 = build_favorites_ticket(winner_candidates, exclude_match_ids=used_match_ids)
-
-    return {
-        "favorites_1": _save_favorites_ticket(built_1, match_meta, user_id) if built_1 else None,
-        "favorites_2": _save_favorites_ticket(built_2, match_meta, user_id) if built_2 else None,
-    }

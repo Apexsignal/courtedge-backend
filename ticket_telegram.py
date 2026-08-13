@@ -23,8 +23,7 @@ MARKET_LABELS_CS = {
 }
 
 TICKET_TYPE_LABELS_CS = {
-    "favorites_1": "FAVORITÉ 1",
-    "favorites_2": "FAVORITÉ 2",
+    "favorites": "FAVORITÉ",
 }
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))

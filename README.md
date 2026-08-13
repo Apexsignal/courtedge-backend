@@ -461,6 +461,49 @@ dnešních zápasech. Appka stáhla fixtures za posledních 60 dní
 Po týhle opravě appka dostala OBA tikety (kurz 2,42 a 2,33) místo
 appka None.
 
+### Jeden pick na tiket (2026-08-13)
+
+Oba tikety z předchozí sekce appka druhý den prohrála. Uživatel appce
+poslal skutečné výsledky, appka je porovnala s modelem na širším
+vzorku (5 favoritů, ne jen 2). Appka trefila 3 z 5 (60 %) — appčina
+průměrná jistota u nich byla 67 %. Na jednotlivých pickách appka
+model appce vypadal v pořádku.
+
+Problém byl v kombinaci. Appka spočítala appčinu vlastní kombinovanou
+jistotu u obou tiketů předem — appka byla 52 % a 40 %. Appka musela
+trefit VŠECHNY legy najednou, takže appka kombinovaná šance na výhru
+byla vždycky nižší než appčina jistota jednotlivého picku.
+
+Uživatel appce řekl: chci co nejpřesnější tipy, appka favorit vyhraje.
+Appka appku zjednodušila:
+
+- `ticket_builder.build_favorites_ticket()` teď vrátí tiket s JEDNÍM
+  nejjistějším favoritem v pásmu 1,3–2,0, žádné kombinování.
+- Jistota picku appce teď přímo odpovídá šanci vyhrát celý tiket.
+- Appka ztratila pevnou podlahu kurzu 1,8 — kurz vyjde, jaký vyjde
+  (dnes 1,45 a 1,37).
+
+Appka poctivě přiznává: nemůže slíbit vyšší úspěšnost, než appka sama
+řekla u toho konkrétního picku (60–75 % podle případu). Appka jen
+přestala appku zhoršovat kombinováním.
+
+### Zpátky na dva tipy (2026-08-13, druhé kolo)
+
+Uživatel appce hned poté řekl, ať appka appku vrátí na JEDEN tiket
+se dvěma nejjistějšími tipy dohromady — ne dva tikety po jednom
+picku. Appka appku poslechla:
+
+- `generate_daily_tickets()` appka nahradila `generate_daily_ticket()`
+  — appka appce vrátí jeden tiket, ne dva.
+- `build_favorites_ticket()` dostala parametr `num_legs`
+  (`ticket_builder.DAILY_TICKET_LEGS = 2`) — appka vezme dva
+  nejjistější favority z RŮZNÝCH zápasů v pásmu 1,3–2,0 a spojí je
+  do jednoho tiketu.
+
+Appka tady znovu připomíná varování výš: kombinovaný tiket musí
+trefit OBA legy. Šance na výhru celého tiketu je proto nižší než
+jistota lepšího picku samotného.
+
 ## Další otevřené věci
 
 - **`recent_retirements_60d` appka má aktuální jen u hráčů z dnešních

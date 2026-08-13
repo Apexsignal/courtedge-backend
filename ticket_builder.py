@@ -226,47 +226,53 @@ def build_ticket(
 
 FAVORITE_MIN_LEG_ODDS = 1.3
 FAVORITE_MAX_LEG_ODDS = 2.0
-FAVORITE_MIN_TICKET_ODDS = 1.8
-# Appka appku přidala 2026-08-12 na výslovné přání uživatele. Appka
-# živě zjistila (screenshot od uživatele), že appčin trh gemů má u
-# skutečného bookmakera jinou hranici, než appka ukazuje appce — je to
-# jiná sázka, ne jen jiná cena. Trh výherce zápasu tenhle problém
-# nemá. Žádná hranice tam není, je to stejná sázka u kteréhokoli
-# bookmakera. Appka proto appčin denní tiket přesouvá na favority
-# (viz build_favorites_ticket).
+# Appka to přidala 2026-08-12 na přání uživatele. Appka živě zjistila
+# (screenshot od uživatele), že appčin trh gemů má u skutečného
+# bookmakera jinou hranici, než appka ukazuje — je to jiná sázka, ne
+# jen jiná cena. Trh výherce zápasu tenhle problém nemá — žádná
+# hranice, stejná sázka u kteréhokoli bookmakera.
 #
-# Appka bere 1,3-2,0 jako rozumné pásmo pro "favorit, ne jistota".
-# Pod 1,3 appku bookmaker vidí skoro stejně jistě jako appka sama —
-# appka na tom nemá výhodu. Nad 2,0 už appka nebere hráče jako
-# favorita, appka je to spíš vyrovnaný zápas.
+# 1,3-2,0 je rozumné pásmo pro "favorit, ne jistota". Pod 1,3 vidí
+# bookmaker hráče skoro stejně jistě jako appka — appka na tom nemá
+# výhodu. Nad 2,0 už appka hráče nebere jako favorita, je to spíš
+# vyrovnaný zápas.
+
+# 2026-08-13, verze 1: appka zkusila jeden pick na tiket, žádné
+# kombinování. Appka živě ověřila, že jednotlivé picky trefovaly
+# blízko appčiny vlastní jistoty (60 % skutečnost proti 67 % slibu na
+# 5 vzorcích) — appka model appce vypadal v pořádku. Kombinované
+# tikety appce ale prohrály oba, protože appka musela trefit VŠECHNY
+# legy najednou.
+#
+# 2026-08-13, verze 2: uživatel appce řekl, ať appka appku vrátí
+# zpátky na JEDEN tiket, appka appce nechá jen 2 nejjistější tipy
+# dohromady. Appka appku poslechla. Appka appku POŘÁD platí varování
+# appce výš — kombinovaný tiket appka musí trefit oba legy, takže
+# appčina šance appku vyhrát je nižší než appčina jistota lepšího
+# picku samotného.
+
+DAILY_TICKET_LEGS = 2
 
 
-def build_favorites_ticket(
-    candidates: list[Candidate],
-    exclude_match_ids: frozenset[int] = frozenset(),
-) -> Optional[BuiltTicket]:
+def build_favorites_ticket(candidates: list[Candidate], num_legs: int = DAILY_TICKET_LEGS) -> Optional[BuiltTicket]:
     """
-    Appka appku staví jen z kandidátů trhu výherce zápasu — appka to
-    zajišťuje volající (viz ticket_generation.generate_daily_tickets).
+    Appka bere jen kandidáty trhu výherce zápasu — appka to zajišťuje
+    volající (viz ticket_generation.generate_daily_ticket).
 
     Appka nechá jen kandidáty s kurzem v pásmu FAVORITE_MIN_LEG_ODDS až
-    FAVORITE_MAX_LEG_ODDS, appka vezme jednoho nejjistějšího kandidáta
-    na zápas a appka je přidává do tiketu podle jistoty. Appka přestane
-    přidávat další leg, jakmile appku kombinovaný kurz přesáhne
-    FAVORITE_MIN_TICKET_ODDS, nebo appka narazí na MAX_TICKET_LEGS.
-    Appka vrátí None, pokud ani na MAX_TICKET_LEGS legů appka
-    nedosáhne FAVORITE_MIN_TICKET_ODDS.
-
-    `exclude_match_ids` appce dovolí postavit DRUHÝ tiket ze
-    zbývajících zápasů, ať appka dva denní tikety nikdy nesdílí
-    stejný zápas.
+    FAVORITE_MAX_LEG_ODDS, appka je seřadí podle jistoty a vezme
+    prvních `num_legs` z RŮZNÝCH zápasů. Appka vrátí None, pokud appka
+    nemá ani jednoho kandidáta v pásmu — appka klidně appce vrátí
+    tiket s méně legy, než appka `num_legs` žádá, pokud appka
+    kandidátů nemá dost.
     """
     in_band = [
         c for c in candidates
-        if c.match_id not in exclude_match_ids
-        and c.market_odds is not None
+        if c.market_odds is not None
         and FAVORITE_MIN_LEG_ODDS <= c.market_odds <= FAVORITE_MAX_LEG_ODDS
     ]
+    if not in_band:
+        return None
 
     best_per_match: dict[int, Candidate] = {}
     for c in in_band:
@@ -275,16 +281,8 @@ def build_favorites_ticket(
             best_per_match[c.match_id] = c
     ranked = sorted(best_per_match.values(), key=lambda c: c.model_probability, reverse=True)
 
-    legs: list[Candidate] = []
+    legs = ranked[:num_legs]
     combined_odds = 1.0
-    for candidate in ranked:
-        if len(legs) >= MAX_TICKET_LEGS:
-            break
-        legs.append(candidate)
-        combined_odds *= candidate.market_odds
-        if combined_odds >= FAVORITE_MIN_TICKET_ODDS:
-            break
-
-    if not legs or combined_odds < FAVORITE_MIN_TICKET_ODDS:
-        return None
+    for leg in legs:
+        combined_odds *= leg.market_odds
     return BuiltTicket(legs=legs, total_odds=round(combined_odds, 3))

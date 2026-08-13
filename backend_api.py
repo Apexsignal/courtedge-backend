@@ -172,28 +172,23 @@ def sync_odds(_: None = Depends(require_admin_key)) -> dict:
 
 
 # ------------------------------------------------------------
-# Admin — generování denních tiketů (appka posílá DVA tikety na
-# favority, z různých zápasů, viz ticket_generation.generate_daily_tickets)
+# Admin — generování denního tiketu (jeden tiket, dva favorité, viz
+# ticket_generation.generate_daily_ticket)
 # ------------------------------------------------------------
 @app.post("/admin/daily-tickets")
 def daily_tickets(send_telegram: bool = True, _: None = Depends(require_admin_key)) -> dict:
     daily_user_id = os.environ.get("DAILY_TICKETS_USER_ID")
-    tickets = ticket_generation.generate_daily_tickets(user_id=int(daily_user_id) if daily_user_id else None)
+    ticket = ticket_generation.generate_daily_ticket(user_id=int(daily_user_id) if daily_user_id else None)
+    if ticket is None:
+        return {"generated": False, "reason": "Appka nenašla ani jednoho favorita v pásmu 1,3-2,0."}
 
-    result: dict = {}
-    for ticket_type, ticket in tickets.items():
-        if ticket is None:
-            result[ticket_type] = {"generated": False, "reason": "Appka nenašla dost favoritů v pásmu 1,3-2,0 na kombinovaný kurz 1,8+."}
-            continue
-
-        entry = {"generated": True, "ticket_id": ticket["id"], "total_odds": float(ticket["total_odds"])}
-        if send_telegram and os.environ.get("TELEGRAM_BOT_TOKEN"):
-            try:
-                send_ticket_to_telegram({**ticket, "ticket_id": ticket["id"], "ticket_type": ticket_type})
-            except Exception as exc:
-                entry["telegram_sent"] = False
-                entry["telegram_error"] = str(exc)
-        result[ticket_type] = entry
+    result = {"generated": True, "ticket_id": ticket["id"], "total_odds": float(ticket["total_odds"])}
+    if send_telegram and os.environ.get("TELEGRAM_BOT_TOKEN"):
+        try:
+            send_ticket_to_telegram({**ticket, "ticket_id": ticket["id"], "ticket_type": "favorites"})
+        except Exception as exc:
+            result["telegram_sent"] = False
+            result["telegram_error"] = str(exc)
 
     return result
 
