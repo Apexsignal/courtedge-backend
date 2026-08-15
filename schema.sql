@@ -117,18 +117,13 @@ CREATE TABLE odds_snapshots (
 CREATE INDEX idx_odds_match_market ON odds_snapshots (match_id, market_code, fetched_at DESC);
 
 -- ------------------------------------------------------------
--- 5. TIKETY — appka staví tikety o 1 až 4 výběrech (viz ticket_builder.py,
---    appka dřív měla pevné pásmo kurzu 2,00-3,00, appka to zrušila —
---    jistota kandidátů appce vyjde přednější než konkrétní kurz).
---
---    Appka 2026-08-12 začala posílat DVA tikety denně (viz ticket_type)
---    — appka zjistila živě, že appčin trh gemů má u skutečného
---    bookmakera jinou hranici, než appka appce ukazuje (jiná sázka, ne
---    jen jiná cena), zatímco trh výherce zápasu žádnou hranici nemá.
---    Appka proto appčin denní tiket přesunula čistě na favority
---    (match_winner, kurz 1,3-2,0 na leg, kombinovaný kurz 1,8+) —
---    appka posílá DVA takové tikety z různých zápasů, ne jeden gemový
---    a jeden na výherce (viz README, "Favorité místo gemů").
+-- 5. TIKETY — appka posílá JEDEN denní tiket, postavený jen z trhu
+--    výherce zápasu (match_winner). Bere dva nejjistější favority
+--    z různých zápasů, kurz 1,2-1,7 na leg (viz ticket_builder.py,
+--    README "Favorité místo gemů" a "Přísnější výběr favoritů").
+--    Appka trh gemů opustila, protože jeho hranice se u skutečného
+--    bookmakera lišila od toho, co appka ukazovala — trh výherce
+--    zápasu žádnou hranici nemá, takže tenhle problém nehrozí.
 -- ------------------------------------------------------------
 CREATE TABLE tickets (
     id                  BIGSERIAL PRIMARY KEY,

@@ -153,23 +153,23 @@ def build_candidates_from_pending_matches() -> tuple[list[Candidate], dict[int, 
 def generate_daily_ticket(user_id: Optional[int] = None) -> Optional[dict]:
     """
     Appka vrátí JEDEN denní tiket, postavený jen z trhu výherce zápasu
-    (match_winner) — appka appku 2026-08-12 přesunula z gemů na
-    favority (viz README, "Favorité místo gemů") a appka appku
-    2026-08-13 dvakrát předělala appčin počet legů (viz README, "Jeden
-    pick na tiket" a "Zpátky na dva tipy"):
+    (match_winner) — appka ho 2026-08-12 přesunula z gemů na favority
+    (viz README, "Favorité místo gemů") a 2026-08-13 dvakrát předělala
+    počet legů (viz README, "Jeden pick na tiket" a "Zpátky na dva
+    tipy"):
 
     - appka nejdřív zkusila dva samostatné tikety po jednom picku,
     - appka teď staví JEDEN tiket ze DVOU nejjistějších favoritů
       (ticket_builder.DAILY_TICKET_LEGS), z RŮZNÝCH zápasů, s kurzem
-      1,3-2,0 na leg.
+      1,2-1,7 na leg.
 
     Appka musí trefit OBA legy, aby tiket vyhrál — appčina šance na
-    výhru celého tiketu je proto nižší než appčina jistota lepšího
-    picku samotného (viz ticket_builder.py, docstring u
+    výhru celého tiketu je proto nižší než jistota lepšího picku
+    samotného (viz ticket_builder.py, docstring u
     build_favorites_ticket).
 
-    Appka vrátí None, pokud nemá v appčině 24hodinovém okně ani
-    jednoho kandidáta v pásmu 1,3-2,0.
+    Appka vrátí None, pokud nemá v 24hodinovém okně ani jednoho
+    kandidáta v pásmu 1,2-1,7.
     """
     candidates, match_meta = build_candidates_from_pending_matches()
     winner_candidates = [c for c in candidates if c.market_code == "match_winner"]

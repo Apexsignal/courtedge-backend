@@ -180,7 +180,7 @@ def daily_tickets(send_telegram: bool = True, _: None = Depends(require_admin_ke
     daily_user_id = os.environ.get("DAILY_TICKETS_USER_ID")
     ticket = ticket_generation.generate_daily_ticket(user_id=int(daily_user_id) if daily_user_id else None)
     if ticket is None:
-        return {"generated": False, "reason": "Appka nenašla ani jednoho favorita v pásmu 1,3-2,0."}
+        return {"generated": False, "reason": "Appka nenašla ani jednoho favorita v pásmu 1,2-1,7."}
 
     result = {"generated": True, "ticket_id": ticket["id"], "total_odds": float(ticket["total_odds"])}
     if send_telegram and os.environ.get("TELEGRAM_BOT_TOKEN"):

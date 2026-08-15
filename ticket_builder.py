@@ -115,8 +115,8 @@ MIN_USABLE_ODDS = 1.15
 # jako "8 nejjistějších tipů", i když je to jeden signál osmkrát. Appka
 # navíc takové extrémní kandidáty appka pozná podle kurzu blízko 1,00 —
 # to znamená, že i BOOKMAKER appku vidí skoro jistě, appka na tom nemá
-# žádnou vlastní výhodu a do tiketu appku takový leg stejně nepoužije
-# (kombinovaný kurz by appku appku stáhl pod 2,00).
+# žádnou vlastní výhodu a do tiketu takový leg stejně nepoužije
+# (kombinovaný kurz by ho stáhl pod 2,00).
 
 
 def rank_candidates(candidates: list[Candidate]) -> list[Candidate]:
@@ -198,11 +198,11 @@ def build_ticket(
     nikdy nevrátí prázdný tiket, jen kvůli tomu. Appka vrátí None,
     pokud appka nemá ani MIN_TICKET_LEGS použitelný kandidát.
 
-    Appka OD 2026-08-12 tuhle funkci pro appčin denní broadcast
-    nepoužívá (viz build_favorites_ticket níže) — appka appku nechává
-    v modulu, appka appku funkčně otestovala i reálnými daty a appka ji
-    může chtít appka znovu použít, kdyby appka měla lepší zdroj kurzů
-    na gemy (viz README, "Favorité místo gemů").
+    Appka OD 2026-08-12 tuhle funkci pro denní broadcast nepoužívá
+    (viz build_favorites_ticket níže) — appka ji v modulu nechává,
+    protože ji funkčně otestovala i reálnými daty a mohla by se hodit
+    znovu, kdyby appka měla lepší zdroj kurzů na gemy (viz README,
+    "Favorité místo gemů").
     """
     usable = [c for c in ranked_candidates if c.market_odds is not None and c.market_odds > 1.0]
     if len(usable) < MIN_TICKET_LEGS:
@@ -224,7 +224,7 @@ def build_ticket(
     return BuiltTicket(legs=legs, total_odds=round(combined_odds, 3))
 
 
-FAVORITE_MIN_LEG_ODDS = 1.3
+FAVORITE_MIN_LEG_ODDS = 1.2
 FAVORITE_MAX_LEG_ODDS = 1.7
 # Appka to přidala 2026-08-12 na přání uživatele. Appka živě zjistila
 # (screenshot od uživatele), že appčin trh gemů má u skutečného
@@ -235,8 +235,12 @@ FAVORITE_MAX_LEG_ODDS = 1.7
 # Appka měla horní hranici původně na 2,0, appka ji 2026-08-13 zpřísnila
 # na 1,7 na přání uživatele — kurz 1,7 znamená, že trh odhaduje hráči
 # zhruba 59% šanci, kurz 2,0 jen 50 %. Appka radši bere picky, kde
-# hráče vidí jistě i trh, ne jen appčin model. Pod 1,3 vidí bookmaker
-# hráče skoro stejně jistě jako appka — appka na tom nemá výhodu.
+# hráče vidí jistě i trh, ne jen appčin model.
+#
+# Dolní hranici appka měla na 1,3, ale 2026-08-15 ji na přání uživatele
+# snížila na 1,2 — na 1,3 appka předtím vyřadila Zvereva (kurz 1,25),
+# a uživatel chtěl takhle jisté favority pouštět dál. Pod 1,2 appka
+# nejde — tam už nemá skoro žádnou výhodu nad trhem.
 
 # 2026-08-13, verze 1: appka zkusila jeden pick na tiket, žádné
 # kombinování. Appka živě ověřila, že jednotlivé picky trefovaly
@@ -245,12 +249,11 @@ FAVORITE_MAX_LEG_ODDS = 1.7
 # tikety appce ale prohrály oba, protože appka musela trefit VŠECHNY
 # legy najednou.
 #
-# 2026-08-13, verze 2: uživatel appce řekl, ať appka appku vrátí
-# zpátky na JEDEN tiket, appka appce nechá jen 2 nejjistější tipy
-# dohromady. Appka appku poslechla. Appka appku POŘÁD platí varování
-# appce výš — kombinovaný tiket appka musí trefit oba legy, takže
-# appčina šance appku vyhrát je nižší než appčina jistota lepšího
-# picku samotného.
+# 2026-08-13, verze 2: uživatel řekl, ať appka vrátí zpátky JEDEN
+# tiket, jen se 2 nejjistějšími tipy dohromady. Appka poslechla.
+# Pořád platí varování výš — kombinovaný tiket musí trefit oba legy,
+# takže šance appky na výhru celého tiketu je nižší než jistota
+# lepšího picku samotného.
 
 DAILY_TICKET_LEGS = 2
 

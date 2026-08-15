@@ -489,9 +489,9 @@ přestala appku zhoršovat kombinováním.
 
 ### Zpátky na dva tipy (2026-08-13, druhé kolo)
 
-Uživatel appce hned poté řekl, ať appka appku vrátí na JEDEN tiket
-se dvěma nejjistějšími tipy dohromady — ne dva tikety po jednom
-picku. Appka appku poslechla:
+Uživatel hned poté řekl, ať appka vrátí JEDEN tiket se dvěma
+nejjistějšími tipy dohromady — ne dva tikety po jednom picku.
+Appka poslechla:
 
 - `generate_daily_tickets()` appka nahradila `generate_daily_ticket()`
   — appka appce vrátí jeden tiket, ne dva.
@@ -535,8 +535,8 @@ Shelton vyhrál. Draper prohrál s Landalucem (outsider, appka mu dala
 kurz jen 1,35–1,38 na trhu). Appka musí trefit oba legy, takže tiket
 prohrál i přes jednu výhru.
 
-**14.–15. 8. — 9 favoritů appky v příštím okně, appka appku sledovala
-bez sázky:**
+**14.–15. 8. — 9 favoritů appky v příštím okně, appka je jen
+sledovala, bez sázky:**
 
 | Zápas | Favorit | Jistota | Výsledek |
 |---|---|---|---|
@@ -561,6 +561,18 @@ Z 9 favoritů appka vyhrála jen 3 (33 %), i když appčiny jistoty byly
 **Souhrn zatím (13.–15. 8., ticket 19 + tahle dávka):** 4 výhry
 z 11 sledovaných favoritů. Appka pokračuje ve sledování, ať appka
 vidí, jestli jde o výkyv, nebo o problém v appčině kalibraci.
+
+### Dolní hranice kurzu snížena na 1,2 (2026-08-15)
+
+Uživatel chtěl na tiketu Navarro (kurz 1,58) i Zvereva (kurz 1,25)
+zároveň. Zverev byl pod appčiným tehdejším minimem 1,3, appka ho proto
+sama nenabídla.
+
+Uživatel appce řekl, ať minimum sníží natrvalo. Appka `FAVORITE_MIN_LEG_ODDS`
+snížila z 1,3 na 1,2 (`ticket_builder.py`). Pásmo je teď 1,2-1,7.
+
+Kombinovaný tiket Navarro + Zverev: kurz 1,975 (1,58 × 1,25),
+kombinovaná jistota 62,9 % (0,732 × 0,859).
 
 ## Další otevřené věci
 
