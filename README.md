@@ -525,6 +525,43 @@ Kurz 1,7 znamená, že trh odhaduje hráči zhruba 59% šanci. Kurz 2,0
 jen 50 %. Appka radši bere picky, kde hráče vidí jistě i trh, ne jen
 appčin model.
 
+### Reálné výsledky — 13.–15. 8. 2026
+
+Appka appku průběžně kontroluje na živých datech z api-tennis.com,
+ne jen na papíře.
+
+**13. 8. — tiket č. 19** (Draper 74,0 % + Shelton 75,4 %, kurz 1,987):
+Shelton vyhrál. Draper prohrál s Landalucem (outsider, appka mu dala
+kurz jen 1,35–1,38 na trhu). Appka musí trefit oba legy, takže tiket
+prohrál i přes jednu výhru.
+
+**14.–15. 8. — 9 favoritů appky v příštím okně, appka appku sledovala
+bez sázky:**
+
+| Zápas | Favorit | Jistota | Výsledek |
+|---|---|---|---|
+| Faria – Brooksby | Brooksby | 70,6 % | prohrál |
+| Medjedovic – Trungelliti | Medjedovic | 75,3 % | prohrál (appka vyřadila kvůli skreči) |
+| Kovacevic – Khachanov | Khachanov | 72,7 % | prohrál (appka vyřadila kvůli skreči) |
+| Merida Aguilar – Cilic | Merida Aguilar | 55,5 % | vyhrál |
+| Stoiana – Valentova | Valentova | 63,7 % | vyhrál |
+| Stephens – Kraus | Stephens | 60,6 % | vyhrál |
+| Kenin – Lys | Lys | 58,3 % | prohrál |
+| Marozsan – Zheng | Marozsan | 58,9 % | prohrál |
+| Putintseva – Samsonova | Putintseva | 54,2 % | prohrál |
+
+Jediný kandidát, co appce prošel filtrem na skutečný tiket (jistota
+nad 65 %, kurz 1,3–1,7), byl Brooksby — a prohrál. Zajímavé je, že
+appčin filtr na skreč correctně vyřadil oba silnější favority
+(Medjedovic, Khachanov) — oba taky prohráli.
+
+Z 9 favoritů appka vyhrála jen 3 (33 %), i když appčiny jistoty byly
+55–75 %. Malý vzorek (jeden den), appka to dál sleduje.
+
+**Souhrn zatím (13.–15. 8., ticket 19 + tahle dávka):** 4 výhry
+z 11 sledovaných favoritů. Appka pokračuje ve sledování, ať appka
+vidí, jestli jde o výkyv, nebo o problém v appčině kalibraci.
+
 ## Další otevřené věci
 
 - **`recent_retirements_60d` appka má aktuální jen u hráčů z dnešních
