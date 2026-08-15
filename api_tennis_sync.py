@@ -13,14 +13,27 @@ NEJLEPŠÍ dostupnou cenu napříč nimi (best price), ne první popadnutou.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 import api_tennis_provider as provider
 import db
 
 ODDS_MARKET_WINNER = "Home/Away"
 ODDS_MARKET_GAMES = "Over/Under by Games in Match"
+
+# api-tennis.com nikdy nepotvrdila, v jaké časové zóně appka dostává
+# `event_time` (README to mělo jako otevřenou otázku). Appka to
+# 2026-08-15 ověřila na dvou reálných zápasech, co uživatel poslal
+# jako screenshot z Tipsportu — appčin zobrazený čas vycházel o
+# skoro 2,5 hodiny napřed. Příčina: appka `event_time` dřív brala
+# jako UTC a tak ji uložila, ale na výstupu ještě přičítala +2h na
+# pražský čas (viz ticket_telegram.py, `_kickoff_local`) — appka tím
+# posouvala čas dvakrát. Skutečnost je, že `event_time` appka dostává
+# už ve středoevropském čase, ne v UTC. Appka ji teď před uložením
+# lokalizuje na Europe/Prague a uloží jako skutečné UTC.
+API_TENNIS_SOURCE_TZ = ZoneInfo("Europe/Prague")
 
 
 def _best_price(bookmaker_prices: dict) -> Optional[float]:
@@ -30,9 +43,10 @@ def _best_price(bookmaker_prices: dict) -> Optional[float]:
 
 def _parse_start_time(event_date: str, event_time: str):
     try:
-        return datetime.strptime(f"{event_date} {event_time}", "%Y-%m-%d %H:%M")
+        naive = datetime.strptime(f"{event_date} {event_time}", "%Y-%m-%d %H:%M")
     except (TypeError, ValueError):
         return None
+    return naive.replace(tzinfo=API_TENNIS_SOURCE_TZ).astimezone(timezone.utc)
 
 
 def sync_upcoming_matches(tour: str, days_ahead: int = 7) -> dict[str, int]:

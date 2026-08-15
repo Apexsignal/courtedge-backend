@@ -494,7 +494,7 @@ nejjistějšími tipy dohromady — ne dva tikety po jednom picku.
 Appka poslechla:
 
 - `generate_daily_tickets()` appka nahradila `generate_daily_ticket()`
-  — appka appce vrátí jeden tiket, ne dva.
+  — appka teď vrátí jeden tiket, ne dva.
 - `build_favorites_ticket()` dostala parametr `num_legs`
   (`ticket_builder.DAILY_TICKET_LEGS = 2`) — appka vezme dva
   nejjistější favority z RŮZNÝCH zápasů v pásmu kurzu appka na leg
@@ -600,6 +600,33 @@ Appka na gemový tiket dává varování přímo v Telegram zprávě — hranice
 se u konkrétního bookmakera může lišit, appka to negarantuje. Appka
 tomu zatím věří jen na vzorku 4 zápasů, sleduje to dál.
 
+### Čas začátku zápasu appka posílala o 2,5 hodiny napřed (2026-08-15)
+
+Uživatel poslal screenshot appčina gemového tiketu na Tipsportu. Časy
+zápasů appce neseděly s tím, co appka posílala v Telegramu — appka to
+ověřila na dvou zápasech:
+
+| Zápas | Appka (před opravou) | Tipsport (skutečnost) |
+|---|---|---|
+| Halys – De Minaur | 22:00 | 19:20 |
+| Zverev – Norrie | 04:30 | 02:10 |
+
+Příčina: appka `event_time` z api-tennis.com brala jako UTC, uložila
+ji tak do DB, a při zobrazení ještě přičetla +2h na pražský čas
+(`ticket_telegram.py`, `_kickoff_local`). Ve skutečnosti appka
+`event_time` dostává už ve středoevropském čase — appka si tím čas
+posunula dvakrát.
+
+Oprava (`api_tennis_sync.py`, `_parse_start_time`): appka `event_time`
+teď nejdřív lokalizuje na Europe/Prague a teprve pak ho převede na
+skutečné UTC pro uložení. Appka to ověřila opakovaným syncem — nové
+časy sedí na 20-40 minut (běžný posun v pořadí zápasů), ne na 2,5
+hodiny.
+
+Appka tenhle problém měla otevřený jako neověřenou otázku od začátku
+appčina vývoje (viz starší verze README) — appka to konečně mohla
+ověřit díky reálnému screenshotu od uživatele.
+
 ## Další otevřené věci
 
 - **`recent_retirements_60d` appka má aktuální jen u hráčů z dnešních
@@ -626,11 +653,6 @@ tomu zatím věří jen na vzorku 4 zápasů, sleduje to dál.
   optimalizovat na přesnost/výtěžnost VLASTNÍCH tiketů (ne jen
   dílčích predikcí), až appka bude mít historii reálně poslaných
   tiketů, ne jen backtest jednotlivých zápasů.
-- **`event_date`/`event_time` appka bere jako appka je dostane, bez
-  ověřené časové zóny** — appka je zatím ukládá jako appka je dostala
-  (nejspíš UTC nebo lokální čas turnaje, appka to needeklarovala od
-  api-tennis.com podpory). Před ostrým nasazením appka doporučuje ověřit,
-  ať appka neposílá tikety s posunutým časem začátku.
 - **api-tennis.com placený plán** — appka neví, jaký plán klíč uživatele
   pokrývá (Starter/Premium/Business/Ultra, $40–120/měsíc) ani jaký má
   denní request limit. Appka doporučuje ověřit v api-tennis.com
