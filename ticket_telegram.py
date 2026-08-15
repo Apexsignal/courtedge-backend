@@ -24,6 +24,7 @@ MARKET_LABELS_CS = {
 
 TICKET_TYPE_LABELS_CS = {
     "favorites": "FAVORITÉ",
+    "games": "GEMY",
 }
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -65,10 +66,15 @@ def build_ticket_caption(ticket: dict) -> str:
     total_odds = ticket.get("total_odds", 0)
     ticket_type = ticket.get("ticket_type")
     type_suffix = f" ({TICKET_TYPE_LABELS_CS[ticket_type].lower()})" if ticket_type in TICKET_TYPE_LABELS_CS else ""
+    line_warning = (
+        "\n\nHranice gemů se u tvého bookmakera může lišit — než klikneš, ověř si ji."
+        if ticket_type == "games" else ""
+    )
     return (
         f"🎾 CourtEdge tiket{type_suffix} · kurz {total_odds:.2f}\n\n"
         "Appka jen doporučuje — sázku si klikáš sám, kde chceš.\n\n"
         "Není to jistota. 18+, sázej jen to, co si můžeš dovolit prohrát."
+        f"{line_warning}"
     )
 
 

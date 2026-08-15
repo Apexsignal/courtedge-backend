@@ -13,10 +13,12 @@ import head_to_head
 from elo_model import PlayerRating, combined_confidence, win_probability
 from market_models import estimate_total_aces, estimate_total_games
 from ticket_builder import (
+    BuiltTicket,
     Candidate,
     MarketThreshold,
     SafetyContext,
     build_favorites_ticket,
+    build_games_ticket,
     passes_safety_filters,
 )
 
@@ -178,6 +180,31 @@ def generate_daily_ticket(user_id: Optional[int] = None) -> Optional[dict]:
     if built is None:
         return None
 
+    return _save_and_render(built, match_meta, user_id, ticket_type="favorites")
+
+
+def generate_games_ticket(user_id: Optional[int] = None) -> Optional[dict]:
+    """
+    Appka vrátí VEDLEJŠÍ denní tiket, postavený z trhu gemů
+    (total_games) — appka ho 2026-08-15 zavedla vedle hlavního tiketu
+    na favority, na přání uživatele (viz README, "Vedlejší tiket na
+    gemy"). Appka bere dva nejjistější kandidáty z RŮZNÝCH zápasů
+    (ticket_builder.GAMES_TICKET_LEGS), bez pevného pásma kurzu.
+
+    Appka vrátí None, pokud nemá v 24hodinovém okně ani jednoho
+    použitelného kandidáta na trhu gemů.
+    """
+    candidates, match_meta = build_candidates_from_pending_matches()
+    games_candidates = [c for c in candidates if c.market_code == "total_games"]
+
+    built = build_games_ticket(games_candidates)
+    if built is None:
+        return None
+
+    return _save_and_render(built, match_meta, user_id, ticket_type="games")
+
+
+def _save_and_render(built: BuiltTicket, match_meta: dict[int, dict], user_id: Optional[int], ticket_type: str) -> dict:
     legs_for_db = []
     legs_for_render = []
     for leg in built.legs:
@@ -193,6 +220,6 @@ def generate_daily_ticket(user_id: Optional[int] = None) -> Optional[dict]:
             "tourney_name": m.get("tourney_name"), "start_time": m.get("start_time"),
         })
 
-    ticket = db.save_ticket(user_id, built.total_odds, legs_for_db, ticket_type="favorites")
+    ticket = db.save_ticket(user_id, built.total_odds, legs_for_db, ticket_type=ticket_type)
     ticket["legs"] = legs_for_render
     return ticket

@@ -574,6 +574,32 @@ snížila z 1,3 na 1,2 (`ticket_builder.py`). Pásmo je teď 1,2-1,7.
 Kombinovaný tiket Navarro + Zverev: kurz 1,975 (1,58 × 1,25),
 kombinovaná jistota 62,9 % (0,732 × 0,859).
 
+### Vedlejší tiket na gemy (2026-08-15)
+
+Uživatel poslal screenshot skutečného Tipsport tiketu — 4 sázky na
+trh gemů, všechny vyhrané. Appka to ověřila na appčiných vlastních
+datech: hranice (26,5 a 27,5) i kurz appce seděly skoro přesně se
+skutečným bookmakerem. Starý mismatch (appka 29,5 vs. Tipsport 26,5),
+kvůli kterému appka trh gemů předtím opustila, teda nebyl univerzální
+problém — jen platil u jednoho konkrétního zápasu.
+
+Uživatel chtěl každý den DVA tikety — appka teď posílá hlavní na
+favority (`generate_daily_ticket`) a vedlejší na gemy
+(`generate_games_ticket`), oba v 8:00 (`ticket_builder.build_games_ticket`).
+Appka je generuje a posílá nezávisle — pokud appka nenajde kandidáta
+na jeden z nich, druhý appka pošle stejně.
+
+Gemový tiket potřeboval vlastní pásmo kurzu (`GAMES_MIN_LEG_ODDS`
+1,25, `GAMES_MAX_LEG_ODDS` 1,7) — appka pro jeden zápas dostane
+kandidáty na desítky hranic najednou, a bez pásma by brala tu
+nejširší (appce nejjistější), ale s kurzem skoro 1,10 — tam appka
+nemá výhodu. S pásmem bere hranici blízko té, co appka ověřila na
+Tipsportu.
+
+Appka na gemový tiket dává varování přímo v Telegram zprávě — hranice
+se u konkrétního bookmakera může lišit, appka to negarantuje. Appka
+tomu zatím věří jen na vzorku 4 zápasů, sleduje to dál.
+
 ## Další otevřené věci
 
 - **`recent_retirements_60d` appka má aktuální jen u hráčů z dnešních

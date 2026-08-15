@@ -290,3 +290,57 @@ def build_favorites_ticket(candidates: list[Candidate], num_legs: int = DAILY_TI
     for leg in legs:
         combined_odds *= leg.market_odds
     return BuiltTicket(legs=legs, total_odds=round(combined_odds, 3))
+
+
+GAMES_TICKET_LEGS = 2
+GAMES_MIN_LEG_ODDS = 1.25
+GAMES_MAX_LEG_ODDS = 1.7
+# Appka to zavedla 2026-08-15 jako VEDLEJŠÍ denní tiket, vedle
+# hlavního na favority. Appka si dřív myslela, že appčina hranice
+# gemů (z api-tennis.com) neodpovídá reálnému bookmakerovi — uživatel
+# appce poslal screenshot Tipsportu na 4 zápasy a appka to ověřila:
+# hranice (26,5 / 27,5) i kurz seděly skoro přesně. Appka na tom
+# ale pořád nestaví jistotu — vzorek byl jen 4 zápasy, appka proto na
+# gemový tiket dává varování, že se hranice u konkrétního bookmakera
+# může lišit (viz ticket_telegram.py).
+#
+# Appka pro jeden zápas dostane kandidáty na DESÍTKY hranic najednou
+# (viz MIN_USABLE_ODDS výš) — čím širší hranice, tím appka appce
+# vypadá jistější, ale kurz appce klesá skoro k 1,00 (appka na tom
+# nemá výhodu, bookmaker appce vidí stejně jistě). Appka proto pásmo
+# omezuje stejně jako u favoritů (viz FAVORITE_MIN/MAX_LEG_ODDS) —
+# reálná data appce ukázala, že skutečné bookmakerské hranice na
+# gemy vychází kolem kurzu 1,25-1,4, ne 1,1.
+
+
+def build_games_ticket(candidates: list[Candidate], num_legs: int = GAMES_TICKET_LEGS) -> Optional[BuiltTicket]:
+    """
+    Appka bere jen kandidáty trhu gemů (total_games) — appka to
+    zajišťuje volající (viz ticket_generation.generate_games_ticket).
+
+    Appka nechá jen kandidáty s kurzem v pásmu GAMES_MIN_LEG_ODDS až
+    GAMES_MAX_LEG_ODDS, seřadí je podle jistoty a vezme prvních
+    `num_legs` z RŮZNÝCH zápasů (nejjistější hranici na zápas v
+    appčině pásmu). Appka vrátí None, pokud nemá ani jednoho
+    kandidáta v pásmu.
+    """
+    in_band = [
+        c for c in candidates
+        if c.market_odds is not None
+        and GAMES_MIN_LEG_ODDS <= c.market_odds <= GAMES_MAX_LEG_ODDS
+    ]
+    if not in_band:
+        return None
+
+    best_per_match: dict[int, Candidate] = {}
+    for c in in_band:
+        current_best = best_per_match.get(c.match_id)
+        if current_best is None or c.model_probability > current_best.model_probability:
+            best_per_match[c.match_id] = c
+    ranked = sorted(best_per_match.values(), key=lambda c: c.model_probability, reverse=True)
+
+    legs = ranked[:num_legs]
+    combined_odds = 1.0
+    for leg in legs:
+        combined_odds *= leg.market_odds
+    return BuiltTicket(legs=legs, total_odds=round(combined_odds, 3))

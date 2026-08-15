@@ -172,25 +172,43 @@ def sync_odds(_: None = Depends(require_admin_key)) -> dict:
 
 
 # ------------------------------------------------------------
-# Admin — generování denního tiketu (jeden tiket, dva favorité, viz
-# ticket_generation.generate_daily_ticket)
+# Admin — generování denních tiketů. Appka od 2026-08-15 posílá DVA:
+# hlavní na favority (viz ticket_generation.generate_daily_ticket)
+# a vedlejší na gemy (viz ticket_generation.generate_games_ticket,
+# README "Vedlejší tiket na gemy"). Appka je posílá nezávisle na
+# sobě — pokud appka nenajde kandidáta na jeden z nich, druhý appka
+# stejně pošle.
 # ------------------------------------------------------------
-@app.post("/admin/daily-tickets")
-def daily_tickets(send_telegram: bool = True, _: None = Depends(require_admin_key)) -> dict:
-    daily_user_id = os.environ.get("DAILY_TICKETS_USER_ID")
-    ticket = ticket_generation.generate_daily_ticket(user_id=int(daily_user_id) if daily_user_id else None)
+def _generate_and_send(build_fn, ticket_type: str, no_candidate_reason: str, user_id: Optional[int], send_telegram: bool) -> dict:
+    ticket = build_fn(user_id=user_id)
     if ticket is None:
-        return {"generated": False, "reason": "Appka nenašla ani jednoho favorita v pásmu 1,2-1,7."}
+        return {"generated": False, "reason": no_candidate_reason}
 
     result = {"generated": True, "ticket_id": ticket["id"], "total_odds": float(ticket["total_odds"])}
     if send_telegram and os.environ.get("TELEGRAM_BOT_TOKEN"):
         try:
-            send_ticket_to_telegram({**ticket, "ticket_id": ticket["id"], "ticket_type": "favorites"})
+            send_ticket_to_telegram({**ticket, "ticket_id": ticket["id"], "ticket_type": ticket_type})
         except Exception as exc:
             result["telegram_sent"] = False
             result["telegram_error"] = str(exc)
-
     return result
+
+
+@app.post("/admin/daily-tickets")
+def daily_tickets(send_telegram: bool = True, _: None = Depends(require_admin_key)) -> dict:
+    daily_user_id = os.environ.get("DAILY_TICKETS_USER_ID")
+    user_id = int(daily_user_id) if daily_user_id else None
+
+    return {
+        "favorites": _generate_and_send(
+            ticket_generation.generate_daily_ticket, "favorites",
+            "Appka nenašla ani jednoho favorita v pásmu 1,2-1,7.", user_id, send_telegram,
+        ),
+        "games": _generate_and_send(
+            ticket_generation.generate_games_ticket, "games",
+            "Appka nenašla ani jednoho použitelného kandidáta na trhu gemů.", user_id, send_telegram,
+        ),
+    }
 
 
 # ------------------------------------------------------------
