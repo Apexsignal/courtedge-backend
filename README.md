@@ -562,6 +562,57 @@ Z 9 favoritů appka vyhrála jen 3 (33 %), i když appčiny jistoty byly
 z 11 sledovaných favoritů. Appka pokračuje ve sledování, ať appka
 vidí, jestli jde o výkyv, nebo o problém v appčině kalibraci.
 
+### Reálné výsledky — 15.–16. 8. 2026
+
+Širší vzorek než minule — 28 favoritů appky z jednoho dne (15. 8.),
+ne jen dva z tiketu. Appka je jen sledovala, bez sázky (dva zápasy
+ještě nedohrané, appka je z výsledku vynechala):
+
+| Zápas | Favorit | Jistota | Výsledek |
+|---|---|---|---|
+| Zverev – Norrie | Zverev | 85,9 % | vyhrál |
+| Djokovic – Tirante | Djokovic | 85,8 % | prohrál |
+| Pegula – Waltert | Pegula | 83,5 % | vyhrál |
+| Rakhimova – Sakkari | Sakkari | 78,4 % | vyhrál |
+| Shnaider – Maria | Shnaider | 78,1 % | vyhrál |
+| Hanfmann – Fils | Fils | 74,7 % | vyhrál |
+| Sonmez – Anisimova | Anisimova | 74,2 % | vyhrál |
+| Vallejo – Vacherot | Vacherot | 73,6 % | prohrál |
+| Navarro – Kalinina | Navarro | 73,2 % | vyhrál |
+| Ostapenko – Frech | Ostapenko | 73,2 % | prohrál |
+| Parry – Mertens | Mertens | 71,0 % | prohrál |
+| Bellucci – Mensik | Mensik | 69,6 % | vyhrál |
+| Atmane – Etcheverry | Etcheverry | 69,2 % | prohrál |
+| Cirstea – Bartunkova | Cirstea | 65,9 % | vyhrál |
+| Zhang – Day | Zhang | 64,8 % | vyhrál |
+| Kecmanovic – Cobolli | Cobolli | 64,2 % | vyhrál |
+| Struff – Tabilo | Tabilo | 63,1 % | vyhrál |
+| Bucsa – Chwalinska | Bucsa | 62,9 % | prohrál |
+| Fery – Duckworth | Duckworth | 62,4 % | prohrál |
+| McNally – Kalinskaya | Kalinskaya | 62,1 % | vyhrál |
+| Jodar – Shapovalov | Shapovalov | 60,5 % | prohrál |
+| Paul – Hurkacz | Paul | 59,7 % | vyhrál |
+| Lehecka – Berrettini | Lehecka | 59,7 % | vyhrál |
+| Halys – De Minaur | De Minaur | 58,6 % | vyhrál |
+| Arnaldi – Landaluce | Arnaldi | 56,1 % | prohrál |
+| Blockx – Navone | Navone | 55,0 % | prohrál |
+
+**16 výher, 10 proher — 61,5 %,** při průměrné appčině jistotě
+68,7 %. Mnohem blíž appčinu vlastnímu odhadu než 14.–15. 8. (61,5 %
+vs. 33 %) — appka to bere jako potvrzení, že ten předchozí den byl
+spíš výkyv, ne problém appčiny kalibrace.
+
+**Souhrn celkem (13.–16. 8.):** 20 výher z 37 sledovaných favoritů
+(54,1 %). Appka pokračuje ve sledování.
+
+**Appčin gemový tiket z 15. 8.** (Zverev + Halys, appčina hranice
+29,5 gemů na oba): podle appčiny vlastní hranice appka vyhrála
+(Zverev 27 gemů, Halys 29 gemů — oba pod 29,5). Uživatel ale reálně
+sázel u Tipsportu na hranici 28,5 — tam appka na Halysovi prohrála
+(29 gemů je nad 28,5). Přesně tohle appčino varování na tiketu řeší:
+appka dá nejjistější appčinu hranici, ale konkrétní bookmaker může
+nabídnout jinou — a i půl gemu dokáže leg rozhodnout.
+
 ### Dolní hranice kurzu snížena na 1,2 (2026-08-15)
 
 Uživatel chtěl na tiketu Navarro (kurz 1,58) i Zvereva (kurz 1,25)
