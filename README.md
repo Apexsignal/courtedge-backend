@@ -252,7 +252,7 @@ nich zvlášť.
 
 Appka z toho počítá tři různé úpravy:
 
-1. **H2H poměr výher** — appka appčin Elo odhad posune blíž k tomu, jak
+1. **H2H poměr výher** — appka Elo odhad posune blíž k tomu, jak
    spolu tihle dva hráči hráli dřív. Váha roste s počtem vzájemných
    zápasů, ale appka ji shora omezuje na 35 % (`H2H_MAX_WEIGHT`) — pár
    zápasů appce na jistotu nestačí.
@@ -354,8 +354,8 @@ nejjistější trhy dneška:
   (appka nikdy neumí odhadnout, kdo vyhraje, tak jistě jako appka umí
   odhadnout gemy jednostranného zápasu).
 
-Appka appku rozdělila na DVA samostatné tikety (`ticket_type` v
-`tickets` — `'games'` / `'winner'`), appka je posílá oba:
+Appka denní tiket rozdělila na DVA samostatné tikety (`ticket_type`
+v `tickets` — `'games'` / `'winner'`) a posílá oba:
 
 - `ticket_generation.generate_daily_tickets()` nahradilo
   `generate_daily_ticket()` — appka kandidáty spočítá JEDNOU (včetně
@@ -475,7 +475,7 @@ trefit VŠECHNY legy najednou, takže appka kombinovaná šance na výhru
 byla vždycky nižší než appčina jistota jednotlivého picku.
 
 Uživatel appce řekl: chci co nejpřesnější tipy, appka favorit vyhraje.
-Appka appku zjednodušila:
+Appka to zjednodušila:
 
 - `ticket_builder.build_favorites_ticket()` teď vrátí tiket s JEDNÍM
   nejjistějším favoritem v pásmu 1,3–2,0, žádné kombinování.
@@ -527,8 +527,8 @@ appčin model.
 
 ### Reálné výsledky — 13.–15. 8. 2026
 
-Appka appku průběžně kontroluje na živých datech z api-tennis.com,
-ne jen na papíře.
+Appka svoje tikety průběžně kontroluje na živých datech
+z api-tennis.com, ne jen na papíře.
 
 **13. 8. — tiket č. 19** (Draper 74,0 % + Shelton 75,4 %, kurz 1,987):
 Shelton vyhrál. Draper prohrál s Landalucem (outsider, appka mu dala
@@ -678,7 +678,26 @@ Appka tenhle problém měla otevřený jako neověřenou otázku od začátku
 appčina vývoje (viz starší verze README) — appka to konečně mohla
 ověřit díky reálnému screenshotu od uživatele.
 
-## Další otevřené věci
+### Dynamický počet legů — kurz vždy aspoň 1,8 (2026-08-17)
+
+Uživatel dva dny po sobě chtěl vyšší kurz (1,9+), ale appka měla
+pevně 2 legy — někdy to stačilo na kurz přes 1,9, jindy (jako
+17. 8., kdy byli nejjistější favorité zároveň nejlevnější na trhu)
+appka na 2 legy nedala ani 1,6.
+
+Uživatel řekl, ať appka vždycky dosáhne kurzu aspoň 1,8, a počet legů
+si sama doladí — někdy 2 zápasy, někdy 3.
+
+`build_favorites_ticket` a `build_games_ticket` appka přepsala:
+místo pevného počtu legů appka bere kandidáty od nejjistějšího a
+přidává je, dokud kombinovaný kurz nedosáhne `DAILY_TICKET_MIN_ODDS`
+/ `GAMES_TICKET_MIN_ODDS` (1,8), nebo appka nedojde na
+`MAX_TICKET_LEGS` (4). Víc legů, než appka na 1,8 potřebuje, appka
+nepřidává — čím víc legů, tím nižší kombinovaná jistota.
+
+Ověřeno na datech ze 17. 8.: hlavní tiket appce vyšel na 3 legy
+(kurz 1,876), gemový tiket taky na 3 (kurz 2,081) — oba dny předtím
+appka měla jen 2.
 
 - **`recent_retirements_60d` appka má aktuální jen u hráčů z dnešních
   zápasů** (cílený přepočet, viz "Skreč vyřazovala skoro všechny

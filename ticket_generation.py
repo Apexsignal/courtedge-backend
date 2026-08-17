@@ -33,11 +33,10 @@ def _to_float(value) -> Optional[float]:
 
 
 def _fetch_form_safe(m: dict) -> Optional[head_to_head.MatchupForm]:
-    """Appka appce zavolá get_H2H (viz head_to_head.py) — appka to
-    obaluje try/except, protože appka radši dostane tiket BEZ H2H/únava
-    signálu, než aby appce jeden nedostupný zápas na api-tennis.com
-    (výpadek, chybějící player_key, rate limit) shodil celé generování
-    tiketu."""
+    """Appka zavolá get_H2H (viz head_to_head.py) — appka to obaluje
+    try/except, protože radši dostane tiket BEZ H2H/únava signálu,
+    než aby jeden nedostupný zápas na api-tennis.com (výpadek,
+    chybějící player_key, rate limit) shodil celé generování tiketu."""
     try:
         return head_to_head.fetch_matchup_form(
             m["a_external_id"], m["b_external_id"], m["start_time"].date(),
@@ -156,17 +155,15 @@ def generate_daily_ticket(user_id: Optional[int] = None) -> Optional[dict]:
     """
     Appka vrátí JEDEN denní tiket, postavený jen z trhu výherce zápasu
     (match_winner) — appka ho 2026-08-12 přesunula z gemů na favority
-    (viz README, "Favorité místo gemů") a 2026-08-13 dvakrát předělala
-    počet legů (viz README, "Jeden pick na tiket" a "Zpátky na dva
-    tipy"):
+    (viz README, "Favorité místo gemů"). Appka staví tiket z RŮZNÝCH
+    zápasů, s kurzem 1,2-1,7 na leg, a legy přidává, dokud kombinovaný
+    kurz nedosáhne ticket_builder.DAILY_TICKET_MIN_ODDS (1,8) — appka
+    2026-08-17 přestala mít pevný počet legů, uživatel chtěl vždycky
+    kurz aspoň 1,8, počet legů (obvykle 2-3) appka doladí sama (viz
+    README, "Dynamický počet legů").
 
-    - appka nejdřív zkusila dva samostatné tikety po jednom picku,
-    - appka teď staví JEDEN tiket ze DVOU nejjistějších favoritů
-      (ticket_builder.DAILY_TICKET_LEGS), z RŮZNÝCH zápasů, s kurzem
-      1,2-1,7 na leg.
-
-    Appka musí trefit OBA legy, aby tiket vyhrál — appčina šance na
-    výhru celého tiketu je proto nižší než jistota lepšího picku
+    Appka musí trefit VŠECHNY legy, aby tiket vyhrál — appčina šance
+    na výhru celého tiketu je proto nižší než jistota lepšího picku
     samotného (viz ticket_builder.py, docstring u
     build_favorites_ticket).
 
@@ -188,8 +185,10 @@ def generate_games_ticket(user_id: Optional[int] = None) -> Optional[dict]:
     Appka vrátí VEDLEJŠÍ denní tiket, postavený z trhu gemů
     (total_games) — appka ho 2026-08-15 zavedla vedle hlavního tiketu
     na favority, na přání uživatele (viz README, "Vedlejší tiket na
-    gemy"). Appka bere dva nejjistější kandidáty z RŮZNÝCH zápasů
-    (ticket_builder.GAMES_TICKET_LEGS), bez pevného pásma kurzu.
+    gemy"). Appka bere kandidáty z RŮZNÝCH zápasů, s kurzem 1,25-1,7
+    na leg, a stejně jako u hlavního tiketu přidává legy, dokud
+    kombinovaný kurz nedosáhne ticket_builder.GAMES_TICKET_MIN_ODDS
+    (1,8).
 
     Appka vrátí None, pokud nemá v 24hodinovém okně ani jednoho
     použitelného kandidáta na trhu gemů.
