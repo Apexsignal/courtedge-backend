@@ -161,12 +161,15 @@ CREATE TABLE market_thresholds (
 );
 
 INSERT INTO market_thresholds (market_code, min_confidence, min_matches_played_12mo) VALUES
-    ('match_winner', 0.65, 10),
+    ('match_winner', 0.60, 10),
     ('total_games',  0.58, 10),
     ('total_aces',   0.58, 10);
 -- match_winner appka zvedla z 0,62 na 0,65 (2026-08-13) na přání
 -- uživatele — zpřísnění appčina denního tiketu na favority (viz
--- README, "Přísnější výběr favoritů").
+-- README, "Přísnější výběr favoritů"). Appka ho 2026-08-19 snížila
+-- na 0,60 — s prahem 0,65 appka měla některé dny jen 1 kandidáta
+-- v pásmu kurzu, uživatel chtěl radši víc kandidátů na dva tipy
+-- (viz README, "Práh jistoty snížen zpátky na 0,60").
 -- Appka 2026-08-11 spustila walk-forward backtest (scripts/backtest_calibration.py,
 -- 6184 zápasů ATP+WTA) a přeladila appčiny KONSTANTY v market_models.py
 -- (appčiny modely byly předtím výrazně přehnaně sebevědomé — viz docstring

@@ -699,6 +699,22 @@ Ověřeno na datech ze 17. 8.: hlavní tiket appce vyšel na 3 legy
 (kurz 1,876), gemový tiket taky na 3 (kurz 2,081) — oba dny předtím
 appka měla jen 2.
 
+### Práh jistoty snížen zpátky na 0,60 (2026-08-19)
+
+19. 8. appka na hlavní tiket našla jen JEDNOHO kandidáta (Rybakina,
+77,5 %, kurz 1,43) — dva další, co by se hodili (Mensik, Pegula),
+appka vyřadila kvůli nedávné skreči soupeře, a Zverev (61,8 %, kurz
+1,35) neprošel appčiným prahem jistoty 65 %.
+
+Uživatel chtěl vždycky dva tipy s kurzem aspoň 1,9 na tiketu. Appka
+zjistila, že práh 65 % (zvednutý z 62 % 2026-08-13, viz "Přísnější
+výběr favoritů") appce zbytečně bral kandidáty jako Zverev, co by
+appce daly kombinovaný kurz přes cíl appky.
+
+Uživatel snížení potvrdil. `market_thresholds.min_confidence` appka
+snížila na 0,60 (schema.sql i běžící DB). Ověřeno: Rybakina (1,43) +
+Zverev (1,35) = kurz 1,931.
+
 - **`recent_retirements_60d` appka má aktuální jen u hráčů z dnešních
   zápasů** (cílený přepočet, viz "Skreč vyřazovala skoro všechny
   favority" výše) — zbytek appčiny databáze (přes 3000 hráčů z
@@ -718,8 +734,10 @@ appka měla jen 2.
 - **Modely appka JE zkalibrovala** (viz nová sekce "Kalibrace modelů"
   níže) — appka měla `GAMES_STD_DEV`/`GAMES_ELO_GAP_SENSITIVITY`/
   Poissonův předpoklad na esa výrazně mimo realitu, teď appka je
-  přeladila na měřená čísla. Samotné PRAHY v `market_thresholds`
-  (0.62 / 0.58 / 0.58) appka zatím nechala — appka je teprve musí
+  přeladila na měřená čísla. PRAHY v `market_thresholds` (aktuálně
+  0.60 / 0.58 / 0.58) appka doladila jen na `match_winner`, na
+  přání uživatele a podle reálných výsledků (viz "Práh jistoty
+  snížen zpátky na 0,60") — appka je teprve musí systematicky
   optimalizovat na přesnost/výtěžnost VLASTNÍCH tiketů (ne jen
   dílčích predikcí), až appka bude mít historii reálně poslaných
   tiketů, ne jen backtest jednotlivých zápasů.
