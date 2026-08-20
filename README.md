@@ -715,6 +715,43 @@ Uživatel snížení potvrdil. `market_thresholds.min_confidence` appka
 snížila na 0,60 (schema.sql i běžící DB). Ověřeno: Rybakina (1,43) +
 Zverev (1,35) = kurz 1,931.
 
+### Challenger jako doplněk hlavního touru (2026-08-20)
+
+20. 8. bylo Cincinnati ve čtvrtfinále — na celém ATP+WTA touru zbylo
+jen 8 zápasů, appka na hlavní tiket nenašla ani jednoho kandidáta.
+Uživatel se zeptal, jestli dnes nehraje ještě někdo jiný — appka bez
+filtru na typ turnaje zjistila, že běží desítky Challenger a ITF
+zápasů zároveň, jen appka je dřív nikdy neukazovala.
+
+Appka ověřila, že api-tennis.com má pro Challenger (`event_type_key`
+281 muži, 272 ženy) STEJNOU strukturu jako pro hlavní tour — historii,
+statistiky (esa atd.) i kurzy (Home/Away, Over/Under gemů). ITF appka
+zatím nepřidávala (o úroveň níž, appka to nechává jako další krok,
+kdyby appka Challenger nestačil).
+
+Appka Challenger napojila do STEJNÉHO hráčského poolu jako hlavní
+tour — appka nezavádí nový `tour`, jen v `api_tennis_provider.py`
+rozšířila `event_type_key` na seznam (hlavní + Challenger) pro každý
+tour. Zápas appka pozná podle `event_type_type` z odpovědi a dá mu
+`tourney_level='C'` — appka tím konečně naplnila `K_FACTOR_BY_LEVEL['C']`
+v `elo_model.py`, co appka měla připravený, ale nikdy nedostal
+data.
+
+Appka spustila celý historický přepočet znovu (2022-01-01 až dnes,
+appka to musela kvůli zachování celé appčiny historie, ne jen
+posledních pár měsíců):
+
+| | před | po |
+|---|---|---|
+| ATP zápasů | 21 388 | 68 232 |
+| ATP hráčů | 1 637 | 3 734 |
+| WTA zápasů | 20 697 | 27 876 |
+| WTA hráčů | 1 613 | 1 898 |
+
+Ověřeno na 20. 8.: appka měla po Challengeru **11 kandidátů** na
+hlavní tiket místo 0. Hlavní tiket appka postavila (Safiullin 67,9 % +
+Fearnley 67,1 %, kurz 1,97), gemový tiket taky (kurz 2,05).
+
 - **`recent_retirements_60d` appka má aktuální jen u hráčů z dnešních
   zápasů** (cílený přepočet, viz "Skreč vyřazovala skoro všechny
   favority" výše) — zbytek appčiny databáze (přes 3000 hráčů z
@@ -726,11 +763,11 @@ Zverev (1,35) = kurz 1,931.
   — appka na trh `total_aces` počítá jen vlastní pravděpodobnost, bez
   tržního kurzu. `ticket_builder.py` takový leg do tiketu nezahrne
   (potřebuje `market_odds`), dokud appka nenajde zdroj kurzu na esa.
-- **`tourney_level` appka z api-tennis.com nedostává** (Grand
-  Slam/Masters/Tour rozlišení pro K-faktor Elo) — appka zatím jede na
-  defaultní hodnotě K-faktoru pro všechny turnaje. Vylepšit appka může
-  přes `tournament_round`/`tournament_name` heuristiku, zatím appka to
-  neřešila.
+- **`tourney_level` appka rozlišuje jen Challenger vs. zbytek** (viz
+  "Challenger jako doplněk hlavního touru") — Grand Slam/Masters/běžný
+  Tour turnaj appka pořád nerozezná, jede na defaultní hodnotě
+  K-faktoru. Vylepšit appka může přes `tournament_round`/`tournament_name`
+  heuristiku, zatím appka to neřešila.
 - **Modely appka JE zkalibrovala** (viz nová sekce "Kalibrace modelů"
   níže) — appka měla `GAMES_STD_DEV`/`GAMES_ELO_GAP_SENSITIVITY`/
   Poissonův předpoklad na esa výrazně mimo realitu, teď appka je
