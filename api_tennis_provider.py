@@ -35,7 +35,20 @@ REQUEST_TIMEOUT = 30
 
 EVENT_TYPE_ATP_SINGLES = 265
 EVENT_TYPE_WTA_SINGLES = 266
-EVENT_TYPE_BY_TOUR = {"atp": EVENT_TYPE_ATP_SINGLES, "wta": EVENT_TYPE_WTA_SINGLES}
+EVENT_TYPE_CHALLENGER_MEN_SINGLES = 281
+EVENT_TYPE_CHALLENGER_WOMEN_SINGLES = 272
+# Appka 2026-08-20 přidala Challenger vedle hlavního touru — STEJNÝ
+# hráčský pool (`tour` zůstává jen 'atp'/'wta', appka nezavádí nový
+# rozměr do schématu). Challenger appce dává víc zápasů pro appčino
+# Elo, hlavně na turnajích jako dnešní Cincinnati čtvrtfinále, kde má
+# appka na hlavním touru jen pár zápasů denně (viz README, "Challenger
+# jako doplněk hlavního touru"). Appka fixture appce označí přes
+# `event_type_type` v odpovědi (`fixture_to_raw_match` z toho appce
+# odvodí `tourney_level='C'` pro nižší K-faktor, viz elo_model.py).
+EVENT_TYPE_BY_TOUR = {
+    "atp": [EVENT_TYPE_ATP_SINGLES, EVENT_TYPE_CHALLENGER_MEN_SINGLES],
+    "wta": [EVENT_TYPE_WTA_SINGLES, EVENT_TYPE_CHALLENGER_WOMEN_SINGLES],
+}
 
 # api-tennis.com appce vrací klíč "tournament_sourface" (překlep v jejich
 # API, appka ho tady jen citovala), s variantami appka musí normalizovat
@@ -74,28 +87,39 @@ def _call(method: str, **params):
 
 def get_fixtures(date_start: str, date_stop: str, tour: str) -> list[dict]:
     """date_start/date_stop appka posílá jako 'YYYY-MM-DD'. Appka bere
-    jen singles (appčiny 3 trhy jsou jen singles, žádný debl)."""
-    return _call(
-        "get_fixtures",
-        date_start=date_start, date_stop=date_stop,
-        event_type_key=EVENT_TYPE_BY_TOUR[tour],
-    )
+    jen singles (appčiny 3 trhy jsou jen singles, žádný debl). Appka
+    volá zvlášť pro hlavní tour a pro Challenger (api-tennis.com bere
+    jen jeden event_type_key na volání) a výsledky spojí — dedupe podle
+    event_key appka nepotřebuje, úrovně se navzájem nepřekrývají."""
+    matches: list[dict] = []
+    for event_type_key in EVENT_TYPE_BY_TOUR[tour]:
+        matches.extend(_call(
+            "get_fixtures",
+            date_start=date_start, date_stop=date_stop,
+            event_type_key=event_type_key,
+        ))
+    return matches
 
 
 def get_odds(date_start: str, date_stop: str, tour: str) -> dict[str, dict]:
     """Appka vrací {event_key (jako string): {market_name: {...}}} —
     appka bere kurzy od ~12 bookmakerů najednou (viz api_tennis_sync.py,
-    appka si z nich vybírá nejlepší cenu)."""
-    raw = _call(
-        "get_odds",
-        date_start=date_start, date_stop=date_stop,
-        event_type_key=EVENT_TYPE_BY_TOUR[tour],
-    )
-    return raw if isinstance(raw, dict) else {}
+    appka si z nich vybírá nejlepší cenu). Appka sloučí hlavní tour
+    i Challenger stejně jako u `get_fixtures` výš."""
+    merged: dict[str, dict] = {}
+    for event_type_key in EVENT_TYPE_BY_TOUR[tour]:
+        raw = _call(
+            "get_odds",
+            date_start=date_start, date_stop=date_stop,
+            event_type_key=event_type_key,
+        )
+        if isinstance(raw, dict):
+            merged.update(raw)
+    return merged
 
 
 def get_h2h(first_player_key: str, second_player_key: str) -> dict:
-    """Appka appce vrátí {"H2H": [...], "firstPlayerResults": [...],
+    """Appka vrátí {"H2H": [...], "firstPlayerResults": [...],
     "secondPlayerResults": [...]} — jedno volání appce dá VZÁJEMNOU
     historii obou hráčů A poslední zápasy KAŽDÉHO z nich zvlášť (appka
     z toho počítá H2H poměr i signál únavy/odpočinku, viz head_to_head.py)."""
@@ -112,9 +136,10 @@ def normalize_surface(raw: Optional[str]) -> Optional[str]:
 def get_surface_by_tournament(tour: Optional[str] = None) -> dict[int, Optional[str]]:
     """Appka vrátí {tournament_key: 'hard'|'clay'|'grass'|'carpet'|None}."""
     raw = _call("get_tournaments")
+    allowed_types = set(EVENT_TYPE_BY_TOUR.get(tour, [])) if tour else None
     result = {}
     for t in raw:
-        if tour and t.get("event_type_key") != EVENT_TYPE_BY_TOUR.get(tour):
+        if allowed_types is not None and t.get("event_type_key") not in allowed_types:
             continue
         result[t["tournament_key"]] = normalize_surface(t.get("tournament_sourface"))
     return result

@@ -70,10 +70,19 @@ def fixture_to_raw_match(fixture: dict, surface_by_tournament: dict[int, Optiona
     if is_retirement:
         score = f"{score} RET".strip()  # appka takhle appčino RawMatch.is_retirement detekuje stejně jako u CSV formátu
 
+    # api-tennis appce nedává úroveň turnaje (Grand Slam/Masters/...)
+    # přímo, ale appka od 2026-08-20 pozná aspoň Challenger podle
+    # `event_type_type` ("Challenger Men/Women Singles") — appka mu dá
+    # tourney_level='C', ať appce elo_model.py použije nižší K-faktor
+    # (viz K_FACTOR_BY_LEVEL). Zbytek (Grand Slam/Masters/Tour) appka
+    # pořád nerozlišuje, jede na defaultu.
+    event_type_type = (fixture.get("event_type_type") or "").lower()
+    tourney_level = "C" if "challenger" in event_type_type else None
+
     return RawMatch(
         tourney_date=tourney_date,
         surface=surface_by_tournament.get(fixture.get("tournament_key")),
-        tourney_level=None,  # api-tennis appce nedává úroveň turnaje (Grand Slam/Masters/...) přímo — appka K-faktor zatím jede na defaultu
+        tourney_level=tourney_level,
         best_of=_infer_best_of(tour, fixture.get("tournament_name")),
         winner_id=str(winner_key),
         winner_name=winner_name,
