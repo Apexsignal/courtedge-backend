@@ -786,6 +786,27 @@ Fearnley 67,1 %, kurz 1,97), gemový tiket taky (kurz 2,05).
   v `api_tennis_ingest.py`, ale u nízkého tieru by appka mohla narazit
   na denní strop).
 
+### Reálné výsledky — 21.–22. 8. 2026
+
+**21. 8. — oba tikety prohrály:**
+- Hlavní (Fearnley + Tarvet, kurz 1,90): Tarvet vyhrál, Fearnley
+  prohrál s Danielem 0:2. Appka musí trefit oba → prohra.
+- Gemy (Fritz/Nakashima, Gauff/Kostyuk, Martinez/Glinka, kurz 2,45):
+  Fritz–Nakashima appce dalo 32 gemů — appčina hranice byla pod 31,5,
+  takže o JEDEN gem appka prohrála (appka v appčiných vlastních
+  datech měla k dispozici i hranici 32,5, kde by appka vyhrála).
+  Zbylé dva legy appka trefila. Appka musí trefit všechny tři → prohra.
+
+Uživatel appce poslal reálný Tipsport screenshot na tenhle gemový
+tiket. Připomíná to dřívější případ s Halysem (viz "Vedlejší tiket
+na gemy") — appčina hranice gemů se u konkrétního bookmakera pořád
+může lišit o půl až jeden gem, a to appku občas rozhodne.
+
+**22. 8. — hlavní tiket vyhrál** (Cobolli/Fils + Royer/Martinez,
+appčin kurz 1,74, uživatel u Tipsportu dostal 1,88): Fils vyhrál
+s Cobollim 2:0, Royer vyhrál s Martinezem 2:0. Uživatel to potvrdil
+reálným screenshotem, appka to ověřila i na vlastních datech.
+
 ## Manuální kroky (appka je udělat nemůže — potřebuje uživatele)
 
 1. **Registrace domény `courtedge.cz`.**
