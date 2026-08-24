@@ -807,6 +807,42 @@ appčin kurz 1,74, uživatel u Tipsportu dostal 1,88): Fils vyhrál
 s Cobollim 2:0, Royer vyhrál s Martinezem 2:0. Uživatel to potvrdil
 reálným screenshotem, appka to ověřila i na vlastních datech.
 
+### Statistika appky, bezpečnostní rezerva a nová kalibrace (2026-08-24)
+
+Uživatel chtěl vidět statistiku všech reálných tiketů. Appka to
+sesbírala z databáze a ověřila naživo:
+
+- **Hlavní tiket (favority):** 5 výher / 5 proher, P/L −1,177 jednotky.
+- **Gemy:** 3 výhry / 6 proher, P/L −4,124 jednotky.
+- **Celkem: 8 výher / 11 proher, P/L −5,301 jednotky** (13.–23. 8.,
+  appčina vlastní data z api-tennis.com).
+
+**Rozbor gemových proher:** 4 z 6 proher appka netrefila o 2,5–5,5
+gemu, ne jen o vlásek. Reakce: appka do `build_games_ticket` přidala
+`GAMES_LINE_SAFETY_MARGIN` (1 gem) — místo nejjistější hranice bere
+appka o krok bezpečnější, i za cenu nižšího kurzu (appka smí jít pod
+`GAMES_MIN_LEG_ODDS`, dolní mez je `MIN_USABLE_ODDS`).
+
+**Rozbor proher na favoritech:** appka rozdělila 20 legů podle pásma
+jistoty. Pásmo 60–70 % sedělo nejhůř (66 % slib, 50 % realita) — appka
+zvažovala zvednout `market_thresholds.min_confidence` z 0,60 na 0,68.
+
+**Než to appka udělala, spustila nový backtest** (2022–2026,
+s Challengerem, 16 906 zápasů na výherce) — a ten appku zastavil.
+Model výherce appce v pásmu 60–90 % sedí dobře, dokonce mírně
+podhodnocuje vlastní jistotu. Malý vzorek 8 legů byla smůla, ne
+signál. Práh appka nechala na 0,60.
+
+**Backtest ale odhalil jinou chybu.** Appčin analytický skript
+(`analyze_backtest.py`) appce hlásil starou hodnotu appčina rozptylu
+gemů (4,2) — appka ji ale už 11. 8. přeladila na 6,8/7,24/8,98 podle
+povrchu. Skript srovnával proti zastaralému číslu, appka si to špatně
+vyložila jako novou chybu. Po opravě srovnání appka zjistila jediný
+reálný rozdíl: appčina hranice gemů na tvrdém povrchu (21,5) je moc
+nízko, čerstvá data ukazují 22,7. Tuhle appka 12. 8. snížila z 22,9
+podle jen 6 prvních tiketů — appka to vrátila zpátky nahoru (viz
+market_models.py, "Baseline vrácen zpět").
+
 ## Manuální kroky (appka je udělat nemůže — potřebuje uživatele)
 
 1. **Registrace domény `courtedge.cz`.**

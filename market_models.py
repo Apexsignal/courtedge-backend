@@ -53,25 +53,35 @@ hodnotu, ne appka syrové naměřené číslo.
 
 ## Reálná korekce po prvních appčiných tiketech (2026-08-12)
 
-Appka appčiných prvních 6 reálných tiketů porovnala se skutečnými
-výsledky (api-tennis.com, zpětně dohledáno). Všech 6 unikátních
-zápasů bylo hard/bo3 (Cincinnati + Montreal) — skutečný počet gemů:
-22, 17, 16, 16, 19, 32 (průměr 20,3 — appka měla baseline 22,9).
+Appka prvních 6 reálných tiketů porovnala se skutečnými výsledky
+(api-tennis.com, zpětně dohledáno). Všech 6 unikátních zápasů bylo
+hard/bo3 (Cincinnati + Montreal) — skutečný počet gemů: 22, 17, 16,
+16, 19, 32 (průměr 20,3 — appka měla baseline 22,9).
 
-Appka VŠECHNY "nad" tipy netrefila (0 ze 4), appka VŠECHNY "pod" tipy
-trefila (5 z 6, jediný omyl byl Trungelliti–Ofner, appka čekala rychlý
-zápas a padlo to na 32 gemů v plném třísetovém boji). Appka appčin
-baseline pro hard/bo3 byl systematicky moc vysoko — appka ho snížila
-z 22,9 na 21,5.
+Appka všechny "nad" tipy netrefila (0 ze 4), všechny "pod" tipy
+trefila (5 z 6, jediný omyl byl Trungelliti–Ofner, appka čekala
+rychlý zápas a padlo to na 32 gemů v plném třísetovém boji). Appka
+usoudila, že baseline pro hard/bo3 je systematicky moc vysoko — snížila
+ho z 22,9 na 21,5.
 
-Appka ví, že 6 zápasů je proti appčinu backtestu na 6184 zápasech
-statisticky zanedbatelný vzorek — čistě podle váhy dat by tohle appku
-mělo posunout jen o zlomek bodu, ne o 1,4 gemu. Appka tenhle větší
-posun udělala na appka výslovné přání uživatele appky, ne appka
-z vlastního úsudku o síle důkazu — appka to appce zapisuje, ať appka
-příště ví, proč tohle číslo neodpovídá čistě backtestu. Appka
-doporučuje přepočítat znovu, až appka bude mít víc reálných tiketů
-(desítky, ne jednotky).
+Appka věděla, že 6 zápasů je proti backtestu na 6184 zápasech
+statisticky zanedbatelný vzorek — čistě podle váhy dat by to appku
+mělo posunout jen o zlomek bodu, ne o 1,4 gemu. Ten větší posun appka
+udělala na výslovné přání uživatele, ne z vlastního úsudku o síle
+důkazu — appka si to zapsala, ať příště ví, proč tohle číslo
+neodpovídá čistě backtestu.
+
+## Baseline vrácen zpět (2026-08-24)
+
+Appka spustila nový backtest — 4949 zápasů na hardu (ATP+WTA,
+s Challengerem, 2022–2026), oproti původním 6 reálným tiketům.
+Regresní intercept vyšel 22,72 gemu, skoro přesně původní backtestová
+hodnota 22,9, ne appčinu sníženou 21,5.
+
+Appka vrátila baseline hard/bo3 na 22,7. Ten korekční pokles z 12. 8.
+byl chyba malého vzorku — appka to tehdy sama v README/docstringu
+předpovídala jako riziko a doporučila přepočítat, jakmile bude mít
+víc dat.
 """
 from __future__ import annotations
 
@@ -87,7 +97,7 @@ from typing import Optional
 # proporčně appka ze starého poměru bo5/bo3 (~1,64×), dokud appka
 # nespustí čistý backtest po opravě best_of detekce.
 BASELINE_GAMES = {
-    ("hard", 3): 21.5,  # appka snížila z 22,9 po 6 reálných appčiných tiketech (viz "Reálná korekce" výše) — backtestová hodnota byla 22,9
+    ("hard", 3): 22.7,  # appka 12.8. snížila z 22,9 na 21,5 podle jen 6 prvních reálných tiketů — čerstvý backtest na 4949 zápasech (24.8., s Challengerem) ukázal, že to byla chyba malého vzorku, appka se vrací zpátky nahoru
     ("hard", 5): 37.5,
     ("clay", 3): 23.2,
     ("clay", 5): 38.1,
