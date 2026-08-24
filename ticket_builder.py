@@ -308,6 +308,16 @@ def build_favorites_ticket(candidates: list[Candidate], min_total_odds: float = 
 GAMES_TICKET_MIN_ODDS = 1.8
 GAMES_MIN_LEG_ODDS = 1.25
 GAMES_MAX_LEG_ODDS = 1.7
+GAMES_LINE_SAFETY_MARGIN = 1.0
+# Appka to přidala 2026-08-24 po rozboru reálných proher — 4 z 6
+# posledních proher gemového tiketu appka netrefila jen o vlásek, ale
+# o 2,5 až 5,5 gemu. Zbylé 2 prohry appka netrefila jen o půl gemu.
+# Appka proto místo nejjistější hranice bere o jeden krok širší
+# (bezpečnější) hranici, i za cenu nižšího kurzu — na to smí jít pod
+# GAMES_MIN_LEG_ODDS, dolní mez je jen MIN_USABLE_ODDS. Tohle nefixuje
+# přehnanou sebejistotu modelu (na to appka potřebuje přepočítat
+# GAMES_STD_DEV na čerstvých datech, viz README), ale sníží dopad
+# nejtěsnějších proher.
 # Appka 2026-08-17 přepnula na stejnou dynamickou logiku jako
 # u favoritů (viz DAILY_TICKET_MIN_ODDS výš) — počet legů appka sama
 # doladí, ať dosáhne kurzu aspoň 1,8.
@@ -335,8 +345,11 @@ def build_games_ticket(candidates: list[Candidate], min_total_odds: float = GAME
     zajišťuje volající (viz ticket_generation.generate_games_ticket).
 
     Appka nechá jen kandidáty s kurzem v pásmu GAMES_MIN_LEG_ODDS až
-    GAMES_MAX_LEG_ODDS, seřadí je podle jistoty a přidává je jeden po
-    druhém (nejjistější hranici na zápas), dokud kombinovaný kurz
+    GAMES_MAX_LEG_ODDS, najde nejjistější hranici na zápas a POSUNE ji
+    o GAMES_LINE_SAFETY_MARGIN gemů bezpečnějším směrem (pokud taková
+    hranice existuje s kurzem nad MIN_USABLE_ODDS) — appka radši
+    obětuje kousek kurzu za rezervu proti třísetovkám a tiebreakům.
+    Appka legy přidává jeden po druhém, dokud kombinovaný kurz
     nedosáhne `min_total_odds`, nebo appka nedojde na MAX_TICKET_LEGS.
     Appka vrátí None, pokud nemá ani jednoho kandidáta v pásmu.
     """
@@ -348,12 +361,27 @@ def build_games_ticket(candidates: list[Candidate], min_total_odds: float = GAME
     if not in_band:
         return None
 
+    by_match: dict[int, list[Candidate]] = {}
+    for c in candidates:
+        if c.market_odds is not None and c.market_odds > MIN_USABLE_ODDS:
+            by_match.setdefault(c.match_id, []).append(c)
+
     best_per_match: dict[int, Candidate] = {}
     for c in in_band:
         current_best = best_per_match.get(c.match_id)
         if current_best is None or c.model_probability > current_best.model_probability:
             best_per_match[c.match_id] = c
-    ranked = sorted(best_per_match.values(), key=lambda c: c.model_probability, reverse=True)
+
+    adjusted: dict[int, Candidate] = {}
+    for match_id, top in best_per_match.items():
+        margin_line = top.line + GAMES_LINE_SAFETY_MARGIN if top.selection == "under" else top.line - GAMES_LINE_SAFETY_MARGIN
+        safer = next(
+            (c for c in by_match[match_id] if c.selection == top.selection and c.line == margin_line),
+            None,
+        )
+        adjusted[match_id] = safer if safer is not None else top
+
+    ranked = sorted(adjusted.values(), key=lambda c: c.model_probability, reverse=True)
 
     legs: list[Candidate] = []
     combined_odds = 1.0
