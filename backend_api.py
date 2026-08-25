@@ -307,29 +307,6 @@ def submit_match_result(body: MatchResultRequest, _: None = Depends(require_admi
     return {"match_id": body.match_id, "status": "finished"}
 
 
-@app.get("/admin/debug-ticket-times/{ticket_id}")
-def debug_ticket_times(ticket_id: int, _: None = Depends(require_admin_key)) -> list[dict]:
-    """Dočasný diagnostický endpoint — appka potřebuje přesný start_time
-    zápasů právě vygenerovaného tiketu, appka to jinde nevrací."""
-    with db.get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT pa.full_name AS player_a, pb.full_name AS player_b, m.tourney_name, m.start_time
-            FROM ticket_legs tl
-            JOIN matches m ON m.id = tl.match_id
-            JOIN players pa ON pa.id = m.player_a_id
-            JOIN players pb ON pb.id = m.player_b_id
-            WHERE tl.ticket_id = %s
-            ORDER BY tl.id
-            """,
-            (ticket_id,),
-        )
-        rows = [dict(r) for r in cur.fetchall()]
-        for r in rows:
-            r["start_time"] = r["start_time"].isoformat() if r["start_time"] else None
-        return rows
-
-
 @app.post("/admin/settle-all-pending")
 def settle_all_pending(lookback_days: int = 3, _: None = Depends(require_admin_key)) -> dict:
     """Appka nejdřív zkusí AUTOMATICKY doplnit výsledky posledních
