@@ -25,13 +25,33 @@ trial) — appka potřebuje platný `APITENNIS_KEY` (env var, viz README).
 """
 from __future__ import annotations
 
+import logging
 import os
+import time
 from typing import Optional
 
 import requests
 
+logger = logging.getLogger(__name__)
+
 BASE_URL = "https://api.api-tennis.com/tennis/"
 REQUEST_TIMEOUT = 30
+# appka 2026-08-25 zjistila (živě, na uživatelově dotazu proč appka
+# jednou vybrala do tiketu horšího kandidáta): `_call` appka volá
+# sekvenčně stovky-krát na jedno sestavení tiketu (H2H appka natahuje
+# pro KAŽDÝ pending zápas zvlášť, viz head_to_head.fetch_matchup_form).
+# `head_to_head._fetch_form_safe` appka má schválně obalené try/except,
+# ať appce jeden výpadek nezhroutí celý tiket — jenže appka tím pádem
+# TICHO ztratila H2H úpravu jistoty pro ten jeden zápas, a appčin greedy
+# výběr do tiketu vzal jiného, ve skutečnosti méně jistého kandidáta.
+# appka to ověřila přímo — izolovaně stejné volání appce prošlo 3/3,
+# takže šlo o přechodný výpadek pod zátěží (~120+ appka volání za sebou
+# za pár minut), ne o trvalou chybu. appka proto přidává krátký retry —
+# ne aby appka schovala reálnou chybu (config appka pořád vidí hned,
+# viz `_api_key`), ale aby appka jeden zaškobrtnutý request nenechala
+# tiše zkreslit, kdo do tiketu appce nakonec vlastně patří.
+RETRY_ATTEMPTS = 3
+RETRY_BACKOFF_SECONDS = 0.6
 
 EVENT_TYPE_ATP_SINGLES = 265
 EVENT_TYPE_WTA_SINGLES = 266
@@ -77,12 +97,24 @@ def _call(method: str, **params):
     je to dict klíčovaný podle `event_key` (appka to nesjednocuje,
     jednotlivé `get_*` wrappery níže appce dávají přesný typ)."""
     query = {"method": method, "APIkey": _api_key(), **params}
-    resp = requests.get(BASE_URL, params=query, timeout=REQUEST_TIMEOUT)
-    resp.raise_for_status()
-    data = resp.json()
-    if data.get("success") != 1:
-        raise RuntimeError(f"api-tennis.com vrátila chybu pro {method}: {data}")
-    return data.get("result", [])
+    last_error: Exception = RuntimeError(f"_call({method}) se nikdy nespustilo")
+    for attempt in range(RETRY_ATTEMPTS):
+        try:
+            resp = requests.get(BASE_URL, params=query, timeout=REQUEST_TIMEOUT)
+            resp.raise_for_status()
+            data = resp.json()
+            if data.get("success") != 1:
+                raise RuntimeError(f"api-tennis.com vrátila chybu pro {method}: {data}")
+            return data.get("result", [])
+        except (requests.exceptions.RequestException, RuntimeError, ValueError) as exc:
+            last_error = exc
+            if attempt < RETRY_ATTEMPTS - 1:
+                logger.warning(
+                    "api-tennis.com %s selhalo (pokus %d/%d): %s — appka to zkusí znovu",
+                    method, attempt + 1, RETRY_ATTEMPTS, exc,
+                )
+                time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
+    raise last_error
 
 
 def get_fixtures(date_start: str, date_stop: str, tour: str) -> list[dict]:
