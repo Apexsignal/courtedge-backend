@@ -7,6 +7,7 @@ Sans — volně šiřitelný font), aby appka nezávisela na fontech
 nainstalovaných v kontejneru na Renderu.
 """
 import io
+import json
 import os
 from datetime import datetime, timezone
 
@@ -15,6 +16,12 @@ from PIL import Image, ImageDraw, ImageFont
 from zoneinfo import ZoneInfo
 
 PRAGUE_TZ = ZoneInfo("Europe/Prague")
+
+# appka 2026-08-25 na přání uživatele přidala k tiketu tlačítko na web
+# (karusel reálných výher, viz netlify_site/) — web appka schválně
+# nedělá povinným krokem (uživatel: "Web neni nutny krok"), tiket appka
+# pořád posílá celý přímo do Telegramu, odkaz je jen navíc.
+WEBSITE_URL = os.environ.get("WEBSITE_URL", "https://courtedge-tenis-tipy.netlify.app")
 
 MARKET_LABELS_CS = {
     "match_winner": "Výherce zápasu",
@@ -213,10 +220,16 @@ def send_ticket_to_telegram(ticket: dict, bot_token: str = None, chat_id: str = 
     img.save(buf, "JPEG", quality=92)
     buf.seek(0)
 
+    reply_markup = {"inline_keyboard": [[{"text": "🌐 Web — historie výher", "url": WEBSITE_URL}]]}
+
     url = f"https://api.telegram.org/bot{token}/sendPhoto"
     resp = requests.post(
         url,
-        data={"chat_id": chat, "caption": build_ticket_caption(ticket)},
+        data={
+            "chat_id": chat,
+            "caption": build_ticket_caption(ticket),
+            "reply_markup": json.dumps(reply_markup),
+        },
         files={"photo": ("ticket.jpg", buf, "image/jpeg")},
         timeout=30,
     )

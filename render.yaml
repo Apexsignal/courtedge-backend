@@ -29,6 +29,10 @@
 #      STRIPE_WEBHOOK_SECRET
 #      DAILY_TICKETS_USER_ID — ID účtu (users.id v DB), pod který appka
 #                            ukládá automaticky generované denní tikety
+#      WEBSITE_URL         — appčin web (odkaz appka přidává k tiketu
+#                            v Telegramu), má rozumný default, není to
+#                            tajný klíč — nastav, jen když appka běží na
+#                            jiné doméně než výchozí Netlify URL
 # 4. Po nasazení dostaneš URL typu https://courtedge-backend.onrender.com.
 #
 # Pozn.: Free plán na Renderu "usíná" po ~15 min nečinnosti (cold start
@@ -73,3 +77,5 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      - key: WEBSITE_URL
+        value: https://courtedge-tenis-tipy.netlify.app
