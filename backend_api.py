@@ -292,26 +292,6 @@ def submit_match_result(body: MatchResultRequest, _: None = Depends(require_admi
     return {"match_id": body.match_id, "status": "finished"}
 
 
-@app.get("/admin/debug-user-bets")
-def debug_user_bets(_: None = Depends(require_admin_key)) -> list[dict]:
-    """Appka dočasný diagnostický endpoint — appka zjišťuje, proč appka
-    reálnému uživateli v historii nezobrazila legy k jeho sázce. Appka
-    ho smaže, až appka najde a opraví příčinu."""
-    with db.get_cursor() as cur:
-        cur.execute("SELECT id, user_id, ticket_id, odds, stake, created_at FROM user_bets ORDER BY created_at DESC")
-        bets = [dict(r) for r in cur.fetchall()]
-        for b in bets:
-            b["created_at"] = b["created_at"].isoformat()
-            b["odds"] = float(b["odds"])
-            b["stake"] = float(b["stake"])
-            cur.execute("SELECT id, ticket_type, status, user_id AS ticket_owner FROM tickets WHERE id = %s", (b["ticket_id"],))
-            t = cur.fetchone()
-            b["ticket"] = dict(t) if t else None
-            cur.execute("SELECT id FROM ticket_legs WHERE ticket_id = %s", (b["ticket_id"],))
-            b["legs_count"] = len(cur.fetchall())
-        return bets
-
-
 @app.post("/admin/settle-all-pending")
 def settle_all_pending(lookback_days: int = 3, _: None = Depends(require_admin_key)) -> dict:
     """Appka nejdřív zkusí AUTOMATICKY doplnit výsledky posledních
