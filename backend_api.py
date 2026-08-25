@@ -398,3 +398,43 @@ def member_today_ticket(_: int = Depends(require_active_subscription)) -> dict:
         "created_at": ticket["created_at"].isoformat(),
         "legs": legs,
     }
+
+
+# ------------------------------------------------------------
+# Uživatelovy vlastní vsazené tikety (viz db.save_bet/get_user_bets,
+# schema.sql sekce 8) — appka drží kurz/částku, co uživatel doopravdy
+# vsadil u svého bookmakera, ne appčin zobrazený kurz.
+# ------------------------------------------------------------
+class SaveBetRequest(BaseModel):
+    ticket_id: int
+    odds: float
+    stake: float
+
+
+@app.post("/member/save-bet")
+def save_bet(body: SaveBetRequest, user_id: int = Depends(require_active_subscription)) -> dict:
+    try:
+        bet = db.save_bet(user_id, body.ticket_id, body.odds, body.stake)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc))
+    return {"id": bet["id"], "ticket_id": bet["ticket_id"], "odds": float(bet["odds"]), "stake": float(bet["stake"])}
+
+
+@app.get("/member/my-bets")
+def my_bets(user_id: int = Depends(require_active_subscription)) -> list[dict]:
+    bets = db.get_user_bets(user_id)
+    result = []
+    for b in bets:
+        odds, stake = float(b["odds"]), float(b["stake"])
+        if b["ticket_status"] == "won":
+            profit = round(stake * (odds - 1), 2)
+        elif b["ticket_status"] == "lost":
+            profit = -stake
+        else:
+            profit = None
+        result.append({
+            "id": b["id"], "ticket_id": b["ticket_id"], "ticket_type": b["ticket_type"],
+            "odds": odds, "stake": stake, "created_at": b["created_at"].isoformat(),
+            "status": b["ticket_status"], "profit": profit,
+        })
+    return result

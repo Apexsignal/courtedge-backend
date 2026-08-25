@@ -515,3 +515,38 @@ def apply_schema_file() -> str:
     with get_cursor(commit=True) as cur:
         cur.execute(sql)
     return "Schéma je aplikované."
+
+
+def save_bet(user_id: int, ticket_id: int, odds: float, stake: float) -> dict:
+    """appka uloží uživatelovu vlastní sázku na appčin tiket — `odds`
+    je to, co uživatel doopravdy vsadil u SVÉHO bookmakera (může se
+    lišit od appčina zobrazeného kurzu), `ticket_id` musí patřit
+    appčinu vlastnímu dennímu tiketu (`tickets.user_id IS NULL`), ne
+    cizímu uživatelskému — appka to appce ověří dřív, než appku uloží."""
+    with get_cursor(commit=True) as cur:
+        cur.execute("SELECT id FROM tickets WHERE id = %s AND user_id IS NULL", (ticket_id,))
+        if cur.fetchone() is None:
+            raise ValueError("Appka tenhle tiket nenašla.")
+        cur.execute(
+            "INSERT INTO user_bets (user_id, ticket_id, odds, stake) VALUES (%s, %s, %s, %s) RETURNING *",
+            (user_id, ticket_id, odds, stake),
+        )
+        return dict(cur.fetchone())
+
+
+def get_user_bets(user_id: int) -> list[dict]:
+    """Appka vrátí uživatelovy uložené sázky i s aktuálním stavem tiketu,
+    na který se každá sázka váže."""
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT ub.id, ub.odds, ub.stake, ub.created_at,
+                   t.id AS ticket_id, t.ticket_type, t.status AS ticket_status, t.total_odds
+            FROM user_bets ub
+            JOIN tickets t ON t.id = ub.ticket_id
+            WHERE ub.user_id = %s
+            ORDER BY ub.created_at DESC
+            """,
+            (user_id,),
+        )
+        return [dict(r) for r in cur.fetchall()]

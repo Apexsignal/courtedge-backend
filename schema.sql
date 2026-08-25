@@ -205,3 +205,22 @@ CREATE TABLE coupon_redemptions (
     redeemed_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (coupon_id, user_id)                -- appka nedovolí appku uplatnit stejný kód dvakrát
 );
+
+-- ------------------------------------------------------------
+-- 8. VLASTNÍ VSAZENÉ TIKETY — appka 2026-08-25 přidala na přání
+--    uživatele: appka ukazuje jeden kurz napříč trhem (viz README,
+--    "kurz vs. riziko"), ale uživatel u svého bookmakera často vidí
+--    jiný. `odds`/`stake` appka bere jako to, co si uživatel SKUTEČNĚ
+--    vsadil — appka podle nich dopočítá zisk/ztrátu, jakmile appčin
+--    tiket appka vyhodnotí (viz `tickets.status`), ne podle appčina
+--    vlastního kurzu.
+-- ------------------------------------------------------------
+CREATE TABLE user_bets (
+    id              BIGSERIAL PRIMARY KEY,
+    user_id         BIGINT NOT NULL REFERENCES users(id),
+    ticket_id       BIGINT NOT NULL REFERENCES tickets(id),
+    odds            NUMERIC(6,3) NOT NULL CHECK (odds > 1.0),
+    stake           NUMERIC(10,2) NOT NULL CHECK (stake > 0),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_user_bets_user ON user_bets (user_id, created_at DESC);
