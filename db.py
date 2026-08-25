@@ -358,3 +358,39 @@ def get_users_tickets(user_id: int) -> list[dict]:
     with get_cursor() as cur:
         cur.execute("SELECT * FROM tickets WHERE user_id = %s ORDER BY created_at DESC", (user_id,))
         return [dict(r) for r in cur.fetchall()]
+
+
+def get_latest_daily_ticket(ticket_type: str = "favorites") -> Optional[dict]:
+    """Appka vrátí appčin nejnovější VLASTNÍ (user_id IS NULL) tiket daného
+    typu i s legy a jmény hráčů — appka to používá pro zamčenou webovou
+    stránku s dnešním tiketem (viz backend_api.py, `/member/today-ticket`),
+    ne pro appčin admin/telegram flow (ten legy dostává z paměti, ne z DB)."""
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT * FROM tickets
+            WHERE ticket_type = %s AND user_id IS NULL
+            ORDER BY created_at DESC LIMIT 1
+            """,
+            (ticket_type,),
+        )
+        row = cur.fetchone()
+        if row is None:
+            return None
+        ticket = dict(row)
+        cur.execute(
+            """
+            SELECT tl.market_code, tl.selection, tl.line, tl.market_odds,
+                   pa.full_name AS player_a, pb.full_name AS player_b,
+                   m.tourney_name, m.start_time
+            FROM ticket_legs tl
+            JOIN matches m ON m.id = tl.match_id
+            JOIN players pa ON pa.id = m.player_a_id
+            JOIN players pb ON pb.id = m.player_b_id
+            WHERE tl.ticket_id = %s
+            ORDER BY tl.id
+            """,
+            (ticket["id"],),
+        )
+        ticket["legs"] = [dict(r) for r in cur.fetchall()]
+        return ticket

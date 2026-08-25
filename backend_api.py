@@ -12,6 +12,7 @@ from datetime import date
 from typing import Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 
 import auth
@@ -23,6 +24,17 @@ import ticket_generation
 from ticket_telegram import send_ticket_to_telegram
 
 app = FastAPI(title="CourtEdge API")
+
+# appka 2026-08-25 přidala CORS jen pro appčin veřejný `/member/*`
+# endpoint — appka ho volá přímo z prohlížeče na webu (jiná doména,
+# Netlify), ostatní appčiny endpointy appka volá jen server-to-server
+# (cron, appka sama), CORS appce tam nic neřeší.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET"],
+    allow_headers=["X-Member-Key"],
+)
 
 
 # ------------------------------------------------------------
@@ -43,6 +55,17 @@ def require_admin_key(x_admin_key: Optional[str] = Header(None)) -> None:
     expected = os.environ.get("ADMIN_TASK_KEY")
     if not expected or x_admin_key != expected:
         raise HTTPException(403, "Neplatný nebo chybějící X-Admin-Key.")
+
+
+def require_member_key(x_member_key: Optional[str] = Header(None)) -> None:
+    """appka 2026-08-25 přidala jako ZJEDNODUŠENOU ochranu webové stránky
+    s dnešním tiketem — jeden sdílený klíč pro všechny platící, ne
+    per-uživatelské přihlášení. appka to nahradí skutečným
+    Stripe/login napojením, až appka postaví checkout (viz README,
+    "Co dál chybí"). Do té doby appka klíč rozdá platícím ručně."""
+    expected = os.environ.get("MEMBER_ACCESS_KEY")
+    if not expected or x_member_key != expected:
+        raise HTTPException(403, "Neplatný nebo chybějící X-Member-Key.")
 
 
 def _client_ip(request: Request) -> str:
@@ -286,3 +309,33 @@ async def stripe_webhook(request: Request) -> dict:
                 pass
 
     return {"received": True}
+
+
+# ------------------------------------------------------------
+# Web s dnešním tiketem — appka to volá přímo z prohlížeče (viz
+# netlify_site/), zamčené X-Member-Key (viz require_member_key výš).
+# ------------------------------------------------------------
+@app.get("/member/today-ticket")
+def member_today_ticket(_: None = Depends(require_member_key)) -> dict:
+    ticket = db.get_latest_daily_ticket("favorites")
+    if ticket is None:
+        return {"ready": False}
+
+    from ticket_telegram import selection_label
+
+    legs = [
+        {
+            "match": f"{leg['player_a']} – {leg['player_b']}",
+            "tourney_name": leg["tourney_name"],
+            "winner": selection_label(leg["market_code"], leg["selection"], leg["line"], leg["player_a"], leg["player_b"]),
+            "odds": float(leg["market_odds"]) if leg["market_odds"] is not None else None,
+        }
+        for leg in ticket["legs"]
+    ]
+    return {
+        "ready": True,
+        "id": ticket["id"],
+        "total_odds": float(ticket["total_odds"]),
+        "created_at": ticket["created_at"].isoformat(),
+        "legs": legs,
+    }

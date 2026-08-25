@@ -33,6 +33,9 @@
 #                            v Telegramu), má rozumný default, není to
 #                            tajný klíč — nastav, jen když appka běží na
 #                            jiné doméně než výchozí Netlify URL
+#      MEMBER_ACCESS_KEY   — sdílený klíč pro zamčenou stránku s dnešním
+#                            tiketem, appka ho rozdá platícím ručně
+#                            (vygeneruj: python3 -c "import secrets; print(secrets.token_hex(16))")
 # 4. Po nasazení dostaneš URL typu https://courtedge-backend.onrender.com.
 #
 # Pozn.: Free plán na Renderu "usíná" po ~15 min nečinnosti (cold start
@@ -79,3 +82,5 @@ services:
         sync: false
       - key: WEBSITE_URL
         value: https://courtedge-tenis-tipy.netlify.app
+      - key: MEMBER_ACCESS_KEY
+        sync: false

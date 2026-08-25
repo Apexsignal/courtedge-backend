@@ -220,7 +220,11 @@ def send_ticket_to_telegram(ticket: dict, bot_token: str = None, chat_id: str = 
     img.save(buf, "JPEG", quality=92)
     buf.seek(0)
 
-    reply_markup = {"inline_keyboard": [[{"text": "🌐 Web — historie výher", "url": WEBSITE_URL}]]}
+    # appka 2026-08-25 přesměrovala tlačítko z appčiny homepage na
+    # `/tiket.html` — tam appka dnešní tiket doopravdy ukazuje (zamčené
+    # X-Member-Key, viz backend_api.py `/member/today-ticket`), homepage
+    # má jen appčinu historii výher pro appku k přesvědčení nových lidí.
+    reply_markup = {"inline_keyboard": [[{"text": "🌐 Tiket na webu", "url": f"{WEBSITE_URL}/tiket.html"}]]}
 
     url = f"https://api.telegram.org/bot{token}/sendPhoto"
     resp = requests.post(
