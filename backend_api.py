@@ -292,6 +292,19 @@ def submit_match_result(body: MatchResultRequest, _: None = Depends(require_admi
     return {"match_id": body.match_id, "status": "finished"}
 
 
+@app.get("/admin/debug-pending-tickets")
+def debug_pending_tickets(_: None = Depends(require_admin_key)) -> list[dict]:
+    """Appka dočasný diagnostický endpoint — appka zjišťuje, proč appčiny
+    starší tikety zůstávají pending. Appka ho smaže, až appka najde a
+    opraví příčinu."""
+    tickets = db.debug_pending_own_tickets()
+    for t in tickets:
+        t["created_at"] = t["created_at"].isoformat()
+        for m in t["matches"]:
+            m["start_time"] = m["start_time"].isoformat() if m["start_time"] else None
+    return tickets
+
+
 @app.post("/admin/settle-all-pending")
 def settle_all_pending(lookback_days: int = 3, _: None = Depends(require_admin_key)) -> dict:
     """Appka nejdřív zkusí AUTOMATICKY doplnit výsledky posledních
