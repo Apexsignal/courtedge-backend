@@ -458,3 +458,21 @@ def get_latest_daily_ticket(ticket_type: str = "favorites") -> Optional[dict]:
         )
         ticket["legs"] = [dict(r) for r in cur.fetchall()]
         return ticket
+
+
+def apply_schema_file() -> str:
+    """Appka nemá samostatný migrační nástroj a appčin sandbox se na
+    produkční DB nedostane přímo (surové TCP appce Render blokuje, jen
+    appčin backend samotný, běžící na Renderu, se tam dostane vlastní
+    interní sítí) — tahle funkce proto přečte `schema.sql` z appčina
+    vlastního repozitáře (appka ho má nasazený vedle sebe) a spustí ho
+    celý. appka ji volá jednorázově přes `/admin/apply-schema`, na
+    čerstvé prázdné DB — na už naplněné by appka spadla na duplicitních
+    `CREATE TABLE`/`CREATE TYPE`, což appka bere jako záměrnou pojistku
+    proti omylem druhému spuštění."""
+    schema_path = os.path.join(os.path.dirname(__file__), "schema.sql")
+    with open(schema_path, encoding="utf-8") as f:
+        sql = f.read()
+    with get_cursor(commit=True) as cur:
+        cur.execute(sql)
+    return "Schéma je aplikované."

@@ -85,6 +85,18 @@ def health() -> dict:
 
 
 # ------------------------------------------------------------
+# Admin — jednorázové založení schématu na čerstvé DB (viz db.apply_schema_file).
+# ------------------------------------------------------------
+@app.post("/admin/apply-schema")
+def apply_schema(_: None = Depends(require_admin_key)) -> dict:
+    try:
+        message = db.apply_schema_file()
+    except Exception as exc:
+        raise HTTPException(500, f"Schéma se nepodařilo aplikovat: {exc}")
+    return {"message": message}
+
+
+# ------------------------------------------------------------
 # Auth
 # ------------------------------------------------------------
 class RegisterRequest(BaseModel):
