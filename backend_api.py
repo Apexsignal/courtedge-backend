@@ -380,7 +380,7 @@ def create_coupon(body: CreateCouponRequest, _: None = Depends(require_admin_key
 # předplatným (viz require_active_subscription výš).
 # ------------------------------------------------------------
 @app.get("/member/today-ticket")
-def member_today_ticket(_: int = Depends(require_active_subscription)) -> dict:
+def member_today_ticket(user_id: int = Depends(require_active_subscription)) -> dict:
     ticket = db.get_latest_daily_ticket("favorites")
     if ticket is None:
         return {"ready": False}
@@ -396,12 +396,14 @@ def member_today_ticket(_: int = Depends(require_active_subscription)) -> dict:
         }
         for leg in ticket["legs"]
     ]
+    my_bet = db.get_bet_for_ticket(user_id, ticket["id"])
     return {
         "ready": True,
         "id": ticket["id"],
         "total_odds": float(ticket["total_odds"]),
         "created_at": ticket["created_at"].isoformat(),
         "legs": legs,
+        "my_bet": {"odds": float(my_bet["odds"]), "stake": float(my_bet["stake"])} if my_bet else None,
     }
 
 
@@ -421,12 +423,15 @@ def save_bet(body: SaveBetRequest, user_id: int = Depends(require_active_subscri
     try:
         bet = db.save_bet(user_id, body.ticket_id, body.odds, body.stake)
     except ValueError as exc:
-        raise HTTPException(404, str(exc))
+        status = 409 if "už máš uložený" in str(exc) else 404
+        raise HTTPException(status, str(exc))
     return {"id": bet["id"], "ticket_id": bet["ticket_id"], "odds": float(bet["odds"]), "stake": float(bet["stake"])}
 
 
 @app.get("/member/my-bets")
 def my_bets(user_id: int = Depends(require_active_subscription)) -> list[dict]:
+    from ticket_telegram import selection_label
+
     bets = db.get_user_bets(user_id)
     result = []
     for b in bets:
@@ -437,9 +442,18 @@ def my_bets(user_id: int = Depends(require_active_subscription)) -> list[dict]:
             profit = -stake
         else:
             profit = None
+        legs = [
+            {
+                "match": f"{leg['player_a']} – {leg['player_b']}",
+                "tourney_name": leg["tourney_name"],
+                "winner": selection_label(leg["market_code"], leg["selection"], leg["line"], leg["player_a"], leg["player_b"]),
+                "result": leg["leg_result"],
+            }
+            for leg in b["legs"]
+        ]
         result.append({
             "id": b["id"], "ticket_id": b["ticket_id"], "ticket_type": b["ticket_type"],
             "odds": odds, "stake": stake, "created_at": b["created_at"].isoformat(),
-            "status": b["ticket_status"], "profit": profit,
+            "status": b["ticket_status"], "profit": profit, "legs": legs,
         })
     return result

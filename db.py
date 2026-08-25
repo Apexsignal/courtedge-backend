@@ -550,6 +550,9 @@ def save_bet(user_id: int, ticket_id: int, odds: float, stake: float) -> dict:
         cur.execute("SELECT id FROM tickets WHERE id = %s AND user_id IS NULL", (ticket_id,))
         if cur.fetchone() is None:
             raise ValueError("Appka tenhle tiket nenašla.")
+        cur.execute("SELECT id FROM user_bets WHERE user_id = %s AND ticket_id = %s", (user_id, ticket_id))
+        if cur.fetchone() is not None:
+            raise ValueError("Tenhle tiket už máš uložený.")
         cur.execute(
             "INSERT INTO user_bets (user_id, ticket_id, odds, stake) VALUES (%s, %s, %s, %s) RETURNING *",
             (user_id, ticket_id, odds, stake),
@@ -557,9 +560,23 @@ def save_bet(user_id: int, ticket_id: int, odds: float, stake: float) -> dict:
         return dict(cur.fetchone())
 
 
+def get_bet_for_ticket(user_id: int, ticket_id: int) -> Optional[dict]:
+    """Appka zjistí, jestli uživatel na tenhle tiket už sázku uložil —
+    appka to používá na `/member/today-ticket`, ať appka rovnou pošle
+    uloženou sázku a appka na webu nenabízí formulář na uložení znovu."""
+    with get_cursor() as cur:
+        cur.execute(
+            "SELECT odds, stake FROM user_bets WHERE user_id = %s AND ticket_id = %s",
+            (user_id, ticket_id),
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+
+
 def get_user_bets(user_id: int) -> list[dict]:
-    """Appka vrátí uživatelovy uložené sázky i s aktuálním stavem tiketu,
-    na který se každá sázka váže."""
+    """Appka vrátí uživatelovy uložené sázky i s aktuálním stavem tiketu
+    a jednotlivými zápasy (appka je potřebuje appce ukázat rovnou v
+    historii — kdo hrál, kdo vyhrál — ne jen souhrnný kurz/částku)."""
     with get_cursor() as cur:
         cur.execute(
             """
@@ -572,4 +589,20 @@ def get_user_bets(user_id: int) -> list[dict]:
             """,
             (user_id,),
         )
-        return [dict(r) for r in cur.fetchall()]
+        bets = [dict(r) for r in cur.fetchall()]
+        for bet in bets:
+            cur.execute(
+                """
+                SELECT tl.market_code, tl.selection, tl.line, tl.leg_result,
+                       pa.full_name AS player_a, pb.full_name AS player_b, m.tourney_name
+                FROM ticket_legs tl
+                JOIN matches m ON m.id = tl.match_id
+                JOIN players pa ON pa.id = m.player_a_id
+                JOIN players pb ON pb.id = m.player_b_id
+                WHERE tl.ticket_id = %s
+                ORDER BY tl.id
+                """,
+                (bet["ticket_id"],),
+            )
+            bet["legs"] = [dict(r) for r in cur.fetchall()]
+        return bets
