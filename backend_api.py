@@ -97,6 +97,19 @@ def apply_schema(_: None = Depends(require_admin_key)) -> dict:
 
 
 # ------------------------------------------------------------
+# Admin — nahrání JSON snapshotu hráčů s předpočítaným Elo (viz
+# db.load_player_snapshot) — appka to používá pro nasazení na čerstvý
+# Render, ať appce nemusí znovu stahovat historii z api-tennis.com.
+# ------------------------------------------------------------
+@app.post("/admin/load-snapshot")
+def load_snapshot(filename: str, _: None = Depends(require_admin_key)) -> dict:
+    try:
+        return db.load_player_snapshot(filename)
+    except FileNotFoundError:
+        raise HTTPException(404, f"Snapshot '{filename}' appka v repozitáři nenašla.")
+
+
+# ------------------------------------------------------------
 # Auth
 # ------------------------------------------------------------
 class RegisterRequest(BaseModel):

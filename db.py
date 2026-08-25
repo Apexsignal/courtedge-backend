@@ -460,6 +460,45 @@ def get_latest_daily_ticket(ticket_type: str = "favorites") -> Optional[dict]:
         return ticket
 
 
+def load_player_snapshot(filename: str) -> dict:
+    """Appka nahraje JSON snapshot z `data/snapshots/` (viz
+    `scripts/load_snapshot_into_db.py`, appka tu logiku duplikuje jen
+    proto, aby ji šlo spustit přes admin endpoint na Renderu — appce
+    tam samotný skript spustit nejde, appka na produkční DB nemá
+    přímý přístup, jen appčin vlastní backend ano). Snapshot appka má
+    v repozitáři už s předpočítaným Elo, takže appka nemusí znovu nic
+    stahovat z api-tennis.com — jen appku uloží."""
+    import json
+    from data_ingest import PlayerRecord
+
+    path = os.path.join(os.path.dirname(__file__), "data", "snapshots", filename)
+    with open(path, encoding="utf-8") as f:
+        payload = json.load(f)
+
+    for p in payload["players"]:
+        record = PlayerRecord(
+            external_id=p["external_id"],
+            tour=p["tour"],
+            full_name=p["full_name"],
+            elo_overall=p["elo_overall"],
+            elo_hard=p["elo_hard"],
+            elo_clay=p["elo_clay"],
+            elo_grass=p["elo_grass"],
+            elo_carpet=p["elo_carpet"],
+            matches_played_total=p["matches_played_total"],
+            matches_played_12mo=p["matches_played_12mo"],
+            ace_rate_hard=p["ace_rate_hard"],
+            ace_rate_clay=p["ace_rate_clay"],
+            ace_rate_grass=p["ace_rate_grass"],
+            ace_rate_carpet=p["ace_rate_carpet"],
+            recent_retirements_60d=p["recent_retirements_60d"],
+            last_match_date=date.fromisoformat(p["last_match_date"]) if p["last_match_date"] else None,
+        )
+        upsert_player(record)
+
+    return {"tour": payload["tour"], "players_loaded": len(payload["players"])}
+
+
 def apply_schema_file() -> str:
     """Appka nemá samostatný migrační nástroj a appčin sandbox se na
     produkční DB nedostane přímo (surové TCP appce Render blokuje, jen
