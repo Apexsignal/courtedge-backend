@@ -499,6 +499,39 @@ def load_player_snapshot(filename: str) -> dict:
     return {"tour": payload["tour"], "players_loaded": len(payload["players"])}
 
 
+def get_recent_won_tickets(ticket_type: str = "favorites", limit: int = 5) -> list[dict]:
+    """Appka vrátí appčiny nejnovější VYHRANÉ vlastní tikety i s legy —
+    appka to používá pro carousel skutečných výher na appčině prodejní
+    stránce (viz `/public/won-tickets`), ať appka to tam neaktualizuje
+    ručně po každé výhře."""
+    with get_cursor() as cur:
+        cur.execute(
+            """
+            SELECT * FROM tickets
+            WHERE ticket_type = %s AND user_id IS NULL AND status = 'won'
+            ORDER BY created_at DESC LIMIT %s
+            """,
+            (ticket_type, limit),
+        )
+        tickets = [dict(r) for r in cur.fetchall()]
+        for ticket in tickets:
+            cur.execute(
+                """
+                SELECT tl.market_code, tl.selection, tl.line, tl.market_odds,
+                       pa.full_name AS player_a, pb.full_name AS player_b, m.tourney_name
+                FROM ticket_legs tl
+                JOIN matches m ON m.id = tl.match_id
+                JOIN players pa ON pa.id = m.player_a_id
+                JOIN players pb ON pb.id = m.player_b_id
+                WHERE tl.ticket_id = %s
+                ORDER BY tl.id
+                """,
+                (ticket["id"],),
+            )
+            ticket["legs"] = [dict(r) for r in cur.fetchall()]
+        return tickets
+
+
 def apply_schema_file() -> str:
     """Appka nemá samostatný migrační nástroj a appčin sandbox se na
     produkční DB nedostane přímo (surové TCP appce Render blokuje, jen

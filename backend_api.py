@@ -408,6 +408,36 @@ def member_today_ticket(user_id: int = Depends(require_active_subscription)) -> 
 
 
 # ------------------------------------------------------------
+# Veřejný carousel skutečných výher na appčině prodejní stránce — appka
+# to nechce ručně přepisovat po každé výhře (viz courtedge_sales.html),
+# proto sem appka tikety plní přímo z appčiny vlastní DB. Bez přihlášení.
+# ------------------------------------------------------------
+@app.get("/public/won-tickets")
+def public_won_tickets() -> list[dict]:
+    from ticket_telegram import selection_label
+
+    tickets = db.get_recent_won_tickets("favorites", limit=5)
+    result = []
+    for t in tickets:
+        legs = [
+            {
+                "match": f"{leg['player_a']} – {leg['player_b']}",
+                "tourney_name": leg["tourney_name"],
+                "winner": selection_label(leg["market_code"], leg["selection"], leg["line"], leg["player_a"], leg["player_b"]),
+                "odds": float(leg["market_odds"]) if leg["market_odds"] is not None else None,
+            }
+            for leg in t["legs"]
+        ]
+        result.append({
+            "id": t["id"],
+            "date": t["created_at"].date().isoformat(),
+            "total_odds": float(t["total_odds"]),
+            "legs": legs,
+        })
+    return result
+
+
+# ------------------------------------------------------------
 # Uživatelovy vlastní vsazené tikety (viz db.save_bet/get_user_bets,
 # schema.sql sekce 8) — appka drží kurz/částku, co uživatel doopravdy
 # vsadil u svého bookmakera, ne appčin zobrazený kurz.
