@@ -208,6 +208,20 @@ def add_watermark(base_img: Image.Image, text: str) -> Image.Image:
     return Image.alpha_composite(base_img.convert("RGBA"), overlay).convert("RGB")
 
 
+def send_admin_alert(message: str, bot_token: str = None, chat_id: str = None) -> dict:
+    """appka pošle prostý textový alert appčinu adminovi (stejný chat jako
+    denní tiket) — appka to používá, když appce ráno selže krok v
+    `.github/workflows/daily-tickets.yml`, ať appka o tom ví hned, ne
+    až se zákazník zeptá, proč mu nepřišel tiket."""
+    token = bot_token or os.environ["TELEGRAM_BOT_TOKEN"]
+    chat = chat_id or os.environ["TELEGRAM_CHAT_ID"]
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    resp = requests.post(url, data={"chat_id": chat, "text": message}, timeout=15)
+    resp.raise_for_status()
+    return resp.json()
+
+
 def send_ticket_to_telegram(ticket: dict, bot_token: str = None, chat_id: str = None) -> dict:
     """Vyrenderuje tiket a rovnou ho pošle do Telegramu. Token/chat_id appka
     vezme z argumentů, jinak z proměnných prostředí TELEGRAM_BOT_TOKEN /

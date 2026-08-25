@@ -268,6 +268,21 @@ def daily_tickets(send_telegram: bool = True, _: None = Depends(require_admin_ke
     }
 
 
+class AlertRequest(BaseModel):
+    message: str
+
+
+@app.post("/admin/alert")
+def admin_alert(body: AlertRequest, _: None = Depends(require_admin_key)) -> dict:
+    """appka pošle admin alert appčinu Telegramu — appka to volá z
+    `.github/workflows/daily-tickets.yml`, když appce ráno selže některý
+    krok (sync/generování/settlement), ať se to appka dozví hned."""
+    from ticket_telegram import send_admin_alert
+
+    send_admin_alert(body.message)
+    return {"sent": True}
+
+
 # ------------------------------------------------------------
 # Admin — ruční zápis výsledku zápasu. Appka tohle používá jako FALLBACK
 # — primárně appka výsledky zápasů ingestovaných přes api-tennis.com

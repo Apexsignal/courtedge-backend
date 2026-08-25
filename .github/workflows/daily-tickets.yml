@@ -41,3 +41,16 @@ jobs:
         run: |
           curl -sS -f -X POST "$API_BASE_URL/admin/settle-all-pending" \
             -H "X-Admin-Key: $ADMIN_TASK_KEY"
+
+      # `if: failure()` — appka tenhle krok spustí, jen když NĚKTERÝ z
+      # kroků výš selhal (curl -f padá na chybové HTTP odpovědi) — appka
+      # tak dostane Telegram alert do appčina admin chatu hned ráno,
+      # místo aby appka čekala, až appce napíše zákazník, že tiket
+      # nedorazil.
+      - name: Poslat alert appčinu adminovi při selhání
+        if: failure()
+        run: |
+          curl -sS -X POST "$API_BASE_URL/admin/alert" \
+            -H "X-Admin-Key: $ADMIN_TASK_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"message\": \"⚠️ Denní tiket appce dnes selhal — zkontroluj běh: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
