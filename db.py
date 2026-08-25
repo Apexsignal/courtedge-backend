@@ -77,6 +77,70 @@ def touch_last_login(user_id: int) -> None:
 
 
 # ------------------------------------------------------------
+# Kupónové kódy — druhá cesta k předplatnému vedle placení (viz
+# schema.sql, sekce 7).
+# ------------------------------------------------------------
+def create_coupon(code: str, days_granted: int, max_uses: int = 1, expires_at: Optional[datetime] = None) -> dict:
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            INSERT INTO coupon_codes (code, days_granted, max_uses, expires_at)
+            VALUES (%s, %s, %s, %s) RETURNING *
+            """,
+            (code.strip().upper(), days_granted, max_uses, expires_at),
+        )
+        return dict(cur.fetchone())
+
+
+def redeem_coupon(user_id: int, code: str) -> dict:
+    """Appka ověří a uplatní kód v jedné transakci: `uses_count` zvedne
+    podmíněným UPDATE (atomicky, žádné dvě souběžné žádosti nevyčerpají
+    limit dvakrát), zápisem do `coupon_redemptions` zabrání stejnému
+    uživateli uplatnit tentýž kód podruhé (UNIQUE constraint), a
+    nakonec posune `subscription_until` — od pozdějšího z `now()` nebo
+    dosavadního konce předplatného, ne od dneška, ať prodloužení
+    aktivní předplatné nezkrátí. Chybu appka hlásí jako `ValueError`
+    se srozumitelným důvodem, ne jako syrovou DB výjimku."""
+    normalized = code.strip().upper()
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            UPDATE coupon_codes
+            SET uses_count = uses_count + 1
+            WHERE code = %s AND uses_count < max_uses
+              AND (expires_at IS NULL OR expires_at > now())
+            RETURNING *
+            """,
+            (normalized,),
+        )
+        coupon = cur.fetchone()
+        if coupon is None:
+            raise ValueError("Kód appka nenašla, nebo je už vyčerpaný/prošlý.")
+        coupon = dict(coupon)
+
+        try:
+            cur.execute(
+                "INSERT INTO coupon_redemptions (coupon_id, user_id) VALUES (%s, %s)",
+                (coupon["id"], user_id),
+            )
+        except psycopg2.IntegrityError:
+            raise ValueError("Tenhle kód jsi už jednou uplatnil/a.")
+
+        cur.execute(
+            """
+            UPDATE users
+            SET subscription_until = GREATEST(COALESCE(subscription_until, now()), now())
+                                      + make_interval(days => %s),
+                subscription_tier = 'active'
+            WHERE id = %s
+            RETURNING subscription_until
+            """,
+            (coupon["days_granted"], user_id),
+        )
+        return dict(cur.fetchone())
+
+
+# ------------------------------------------------------------
 # Hráči (Elo, ace rate, bezpečnostní čítače) — viz data_ingest.py
 # ------------------------------------------------------------
 def upsert_player(record) -> None:

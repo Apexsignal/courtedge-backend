@@ -178,3 +178,30 @@ INSERT INTO market_thresholds (market_code, min_confidence, min_matches_played_1
 -- PRAHY (kde appka řekne "beru/neberu") appka ještě nezkoušela optimalizovat
 -- na přesnost/výtěžnost tiketů — appka to udělá, až appka bude mít
 -- historii appčiných VLASTNÍCH tiketů, ne jen appčiných dílčích predikcí.
+
+-- ------------------------------------------------------------
+-- 7. KUPÓNOVÉ KÓDY — appka 2026-08-25 přidala na přání uživatele jako
+--    druhou cestu k předplatnému vedle placení (Stripe appka ještě
+--    nemá napojený, viz README "Co dál chybí appce k dodělání").
+--    Kód appka aktivuje jako přidání `days_granted` dnů k
+--    `users.subscription_until` (od pozdějšího z `now()`/appčina
+--    aktuálního konce předplatného, ne od dneška — appka tak
+--    prodloužení nezkracuje aktivní předplatné).
+-- ------------------------------------------------------------
+CREATE TABLE coupon_codes (
+    id              BIGSERIAL PRIMARY KEY,
+    code            VARCHAR(40) UNIQUE NOT NULL,
+    days_granted    INTEGER NOT NULL CHECK (days_granted > 0),
+    max_uses        INTEGER NOT NULL DEFAULT 1 CHECK (max_uses > 0),
+    uses_count      INTEGER NOT NULL DEFAULT 0,
+    expires_at      TIMESTAMPTZ,               -- appka nechá NULL = kód appka nemá časové omezení
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE coupon_redemptions (
+    id              BIGSERIAL PRIMARY KEY,
+    coupon_id       BIGINT NOT NULL REFERENCES coupon_codes(id),
+    user_id         BIGINT NOT NULL REFERENCES users(id),
+    redeemed_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (coupon_id, user_id)                -- appka nedovolí appku uplatnit stejný kód dvakrát
+);

@@ -8,7 +8,7 @@ těch modulech, tenhle soubor jen routuje HTTP požadavky na ně.
 from __future__ import annotations
 
 import os
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -25,15 +25,16 @@ from ticket_telegram import send_ticket_to_telegram
 
 app = FastAPI(title="CourtEdge API")
 
-# appka 2026-08-25 přidala CORS jen pro appčin veřejný `/member/*`
-# endpoint — appka ho volá přímo z prohlížeče na webu (jiná doména,
-# Netlify), ostatní appčiny endpointy appka volá jen server-to-server
-# (cron, appka sama), CORS appce tam nic neřeší.
+# appka 2026-08-25 přidala CORS pro appčinu webovou stránku s dnešním
+# tiketem (jiná doména, Netlify) — appka odtamtud volá přihlášení,
+# registraci, uplatnění kupónu i samotný tiket přímo z prohlížeče.
+# Ostatní appčiny endpointy appka volá jen server-to-server (cron,
+# appka sama), CORS appce tam nic neřeší.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET"],
-    allow_headers=["X-Member-Key"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 
@@ -57,15 +58,18 @@ def require_admin_key(x_admin_key: Optional[str] = Header(None)) -> None:
         raise HTTPException(403, "Neplatný nebo chybějící X-Admin-Key.")
 
 
-def require_member_key(x_member_key: Optional[str] = Header(None)) -> None:
-    """appka 2026-08-25 přidala jako ZJEDNODUŠENOU ochranu webové stránky
-    s dnešním tiketem — jeden sdílený klíč pro všechny platící, ne
-    per-uživatelské přihlášení. appka to nahradí skutečným
-    Stripe/login napojením, až appka postaví checkout (viz README,
-    "Co dál chybí"). Do té doby appka klíč rozdá platícím ručně."""
-    expected = os.environ.get("MEMBER_ACCESS_KEY")
-    if not expected or x_member_key != expected:
-        raise HTTPException(403, "Neplatný nebo chybějící X-Member-Key.")
+def require_active_subscription(user_id: int = Depends(get_current_user_id)) -> int:
+    """Appka nahradila dřívější jeden sdílený klíč skutečným
+    přihlášením — appka teď ověřuje `subscription_until` konkrétního
+    uživatele, ne jedno společné heslo pro všechny. Aktivní ho
+    uživatel má buď zaplacením (Stripe appka ještě nemá napojený),
+    nebo uplatněním kódu (viz `db.redeem_coupon`)."""
+    user = db.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(404, "Účet nenalezen.")
+    if not user["subscription_until"] or user["subscription_until"] < datetime.now(timezone.utc):
+        raise HTTPException(402, "Nemáš aktivní předplatné.")
+    return user_id
 
 
 def _client_ip(request: Request) -> str:
@@ -312,11 +316,41 @@ async def stripe_webhook(request: Request) -> dict:
 
 
 # ------------------------------------------------------------
+# Kupónové kódy — druhá cesta k předplatnému vedle placení (viz
+# schema.sql, sekce 7, a db.redeem_coupon).
+# ------------------------------------------------------------
+class RedeemCouponRequest(BaseModel):
+    code: str
+
+
+class CreateCouponRequest(BaseModel):
+    code: str
+    days_granted: int
+    max_uses: int = 1
+
+
+@app.post("/coupons/redeem")
+def redeem_coupon(body: RedeemCouponRequest, user_id: int = Depends(get_current_user_id)) -> dict:
+    try:
+        result = db.redeem_coupon(user_id, body.code)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    return {"subscription_until": result["subscription_until"].isoformat()}
+
+
+@app.post("/admin/coupons")
+def create_coupon(body: CreateCouponRequest, _: None = Depends(require_admin_key)) -> dict:
+    coupon = db.create_coupon(body.code, body.days_granted, body.max_uses)
+    return {"id": coupon["id"], "code": coupon["code"], "days_granted": coupon["days_granted"], "max_uses": coupon["max_uses"]}
+
+
+# ------------------------------------------------------------
 # Web s dnešním tiketem — appka to volá přímo z prohlížeče (viz
-# netlify_site/), zamčené X-Member-Key (viz require_member_key výš).
+# netlify_site/tiket.html), zamčené skutečným přihlášením a aktivním
+# předplatným (viz require_active_subscription výš).
 # ------------------------------------------------------------
 @app.get("/member/today-ticket")
-def member_today_ticket(_: None = Depends(require_member_key)) -> dict:
+def member_today_ticket(_: int = Depends(require_active_subscription)) -> dict:
     ticket = db.get_latest_daily_ticket("favorites")
     if ticket is None:
         return {"ready": False}

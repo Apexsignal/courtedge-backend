@@ -843,6 +843,44 @@ nízko, čerstvá data ukazují 22,7. Tuhle appka 12. 8. snížila z 22,9
 podle jen 6 prvních tiketů — appka to vrátila zpátky nahoru (viz
 market_models.py, "Baseline vrácen zpět").
 
+### Odkaz na web u Telegram tiketu + zamčená stránka s dnešním tiketem (2026-08-25)
+
+Uživatel chtěl k dennímu tiketu v Telegramu přidat odkaz na web —
+appka posílá tiket pořád celý přímo do Telegramu (web zůstává
+nepovinný krok), tlačítko jen navíc míří na `netlify_site/tiket.html`.
+
+**Zamykání appka postavila na skutečném účtu, ne na jednom sdíleném
+klíči.** První verze měla jeden `X-Member-Key` pro všechny platící,
+uživatel ale chtěl rozlišit jednotlivé lidi — platící zákazníky a
+lidi, co dostanou kód na zkoušku zdarma. Řešení:
+
+- existující registrace/přihlášení (`/auth/register`, `/auth/login`) —
+  appka je měla hotové z dřívějška, jen nevyužité na webu,
+- nový **kupónový systém**: tabulky `coupon_codes` a
+  `coupon_redemptions` (viz `schema.sql`). Kód se vygeneruje přes
+  `POST /admin/coupons` (`X-Admin-Key`, tělo `code`/`days_granted`/
+  `max_uses`) a uživatel ho uplatní přes `POST /coupons/redeem`
+  (přihlášený, tělo `{code}`) — appka mu posune
+  `users.subscription_until` o `days_granted` dní od pozdějšího z
+  `now()` nebo dosavadního konce předplatného, ať kód nezkrátí
+  aktivní předplatné,
+- `/member/today-ticket` teď žádá platné přihlášení A aktivní
+  `subscription_until` (`require_active_subscription`), ne starý
+  sdílený klíč.
+
+appka to živě otestovala (lokální backend + Playwright): registrace →
+bez předplatného appka vrátí 402 → uplatnění kódu → tiket se zobrazí →
+odhlášení → opětovné přihlášení, předplatné zůstává aktivní. Cestou
+appka narazila na chybu — nové tabulky vznikly pod `postgres`
+superuserem, ne appčiným provozním účtem `courtedge`, appce chyběla
+práva (`GRANT ALL ... TO courtedge`) — appka to opravila hned.
+
+**Pořád chybí:** appka `MEMBER_ACCESS_KEY` z konfigurace úplně
+odstranila (zamykání teď jede jen přes účty), backend ale pořád nemá
+nikde živé nasazení, takže `/tiket.html` nikomu nic nezobrazí, dokud
+appka projekt nedostane na Render (viz "Manuální kroky" níže, bod 8 o
+migraci kupónových tabulek).
+
 ## Manuální kroky (appka je udělat nemůže — potřebuje uživatele)
 
 1. **Registrace domény `courtedge.cz`.**
@@ -863,6 +901,12 @@ market_models.py, "Baseline vrácen zpět").
    (Settings → Secrets and variables → Actions) — bez nich appčin denní
    cron (`.github/workflows/daily-tickets.yml`) poběží, ale bude
    selhávat. Viz sekce "Denní automatizace" výše.
+8. **Aplikovat migraci `coupon_codes`/`coupon_redemptions`** na appčinu
+   produkční DB. Samostatný migrační skript appka zatím nemá — nový
+   nasazený projekt spustí `schema.sql` celé (obě tabulky už uvnitř
+   jsou), existující DB stačí pustit poslední dva `CREATE TABLE` bloky
+   ze `schema.sql` ručně přes `psql "$DATABASE_URL"`. Viz "Zamčená
+   webová stránka s dnešním tiketem" níže.
 
 ## Lokální vývoj
 
