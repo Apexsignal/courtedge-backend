@@ -101,6 +101,11 @@ def apply_schema(_: None = Depends(require_admin_key)) -> dict:
 # db.load_player_snapshot) — appka to používá pro nasazení na čerstvý
 # Render, ať appce nemusí znovu stahovat historii z api-tennis.com.
 # ------------------------------------------------------------
+@app.post("/admin/ensure-user-bets-table")
+def ensure_user_bets_table(_: None = Depends(require_admin_key)) -> dict:
+    return {"message": db.ensure_user_bets_table()}
+
+
 @app.post("/admin/load-snapshot")
 def load_snapshot(filename: str, _: None = Depends(require_admin_key)) -> dict:
     try:

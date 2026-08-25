@@ -517,6 +517,29 @@ def apply_schema_file() -> str:
     return "Schéma je aplikované."
 
 
+def ensure_user_bets_table() -> str:
+    """Appka to volá jednorázově přes `/admin/ensure-user-bets-table` na
+    už BĚŽÍCÍ produkční DB, kde appka nemůže pustit celé `schema.sql`
+    znovu (spadlo by na duplicitních `CREATE TABLE` u appka existujících
+    tabulek) — `IF NOT EXISTS` appce dovolí přidat jen tuhle jednu novou
+    tabulku bezpečně."""
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_bets (
+                id              BIGSERIAL PRIMARY KEY,
+                user_id         BIGINT NOT NULL REFERENCES users(id),
+                ticket_id       BIGINT NOT NULL REFERENCES tickets(id),
+                odds            NUMERIC(6,3) NOT NULL CHECK (odds > 1.0),
+                stake           NUMERIC(10,2) NOT NULL CHECK (stake > 0),
+                created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
+        )
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_user_bets_user ON user_bets (user_id, created_at DESC)")
+    return "Tabulka user_bets je připravená."
+
+
 def save_bet(user_id: int, ticket_id: int, odds: float, stake: float) -> dict:
     """appka uloží uživatelovu vlastní sázku na appčin tiket — `odds`
     je to, co uživatel doopravdy vsadil u SVÉHO bookmakera (může se
