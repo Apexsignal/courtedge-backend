@@ -229,12 +229,12 @@ def sync_odds(_: None = Depends(require_admin_key)) -> dict:
 
 
 # ------------------------------------------------------------
-# Admin — generování denních tiketů. Appka od 2026-08-15 posílá DVA:
-# hlavní na favority (viz ticket_generation.generate_daily_ticket)
-# a vedlejší na gemy (viz ticket_generation.generate_games_ticket,
-# README "Vedlejší tiket na gemy"). Appka je posílá nezávisle na
-# sobě — pokud appka nenajde kandidáta na jeden z nich, druhý appka
-# stejně pošle.
+# Admin — generování denního tiketu. Appka od 2026-08-15 do 2026-08-26
+# posílala DVA tikety (hlavní na favority + vedlejší na gemy), uživatel
+# ale chtěl do Telegramu posílat jen favority (výherce) — appka proto
+# přestala gemový tiket v denním cyklu volat. `ticket_generation.
+# generate_games_ticket` appka v modulu nechává nedotčenou, appka ji
+# funkčně otestovala i reálnými daty a mohla by se hodit znovu.
 # ------------------------------------------------------------
 def _generate_and_send(build_fn, ticket_type: str, no_candidate_reason: str, user_id: Optional[int], send_telegram: bool) -> dict:
     ticket = build_fn(user_id=user_id)
@@ -260,10 +260,6 @@ def daily_tickets(send_telegram: bool = True, _: None = Depends(require_admin_ke
         "favorites": _generate_and_send(
             ticket_generation.generate_daily_ticket, "favorites",
             "Appka nenašla ani jednoho favorita v pásmu 1,2-1,7.", user_id, send_telegram,
-        ),
-        "games": _generate_and_send(
-            ticket_generation.generate_games_ticket, "games",
-            "Appka nenašla ani jednoho použitelného kandidáta na trhu gemů.", user_id, send_telegram,
         ),
     }
 
