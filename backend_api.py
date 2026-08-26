@@ -307,31 +307,6 @@ def submit_match_result(body: MatchResultRequest, _: None = Depends(require_admi
     return {"match_id": body.match_id, "status": "finished"}
 
 
-@app.get("/admin/debug-model-inputs/{ticket_id}")
-def debug_model_inputs(ticket_id: int, _: None = Depends(require_admin_key)) -> list[dict]:
-    """Dočasný diagnostický endpoint — appka zjišťuje, jestli model měl
-    na dnešní prohraný tiket nějaké varovné signály (nízká jistota,
-    málo odehraných zápasů u appka soupeře), nebo šlo o čistou
-    nepředvídatelnou náhodu. Smaže se, až se appka rozhodne, jestli
-    a jak appku doladit."""
-    with db.get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT tl.model_probability, tl.market_odds, tl.selection,
-                   pa.full_name AS player_a, pa.elo_overall AS elo_a, pa.matches_played_12mo AS matches_a,
-                   pb.full_name AS player_b, pb.elo_overall AS elo_b, pb.matches_played_12mo AS matches_b
-            FROM ticket_legs tl
-            JOIN matches m ON m.id = tl.match_id
-            JOIN players pa ON pa.id = m.player_a_id
-            JOIN players pb ON pb.id = m.player_b_id
-            WHERE tl.ticket_id = %s
-            ORDER BY tl.id
-            """,
-            (ticket_id,),
-        )
-        return [dict(r) for r in cur.fetchall()]
-
-
 @app.post("/admin/settle-all-pending")
 def settle_all_pending(lookback_days: int = 3, _: None = Depends(require_admin_key)) -> dict:
     """Appka nejdřív zkusí AUTOMATICKY doplnit výsledky posledních
