@@ -307,6 +307,31 @@ def submit_match_result(body: MatchResultRequest, _: None = Depends(require_admi
     return {"match_id": body.match_id, "status": "finished"}
 
 
+@app.get("/admin/debug-ticket-status/{ticket_id}")
+def debug_ticket_status(ticket_id: int, _: None = Depends(require_admin_key)) -> dict:
+    """Dočasný diagnostický endpoint — appka zjišťuje, proč se konkrétní
+    tiket sám nevyhodnotil, i když appka ví, že zápasy už doopravdy
+    skončily. Smaže se, až se najde příčina."""
+    with db.get_cursor() as cur:
+        cur.execute("SELECT id, status FROM tickets WHERE id = %s", (ticket_id,))
+        ticket = dict(cur.fetchone())
+        cur.execute(
+            """
+            SELECT tl.leg_result, m.id AS match_id, m.external_id, m.tour, m.status AS match_status,
+                   m.winner_id, m.retirement, pa.full_name AS player_a, pb.full_name AS player_b
+            FROM ticket_legs tl
+            JOIN matches m ON m.id = tl.match_id
+            JOIN players pa ON pa.id = m.player_a_id
+            JOIN players pb ON pb.id = m.player_b_id
+            WHERE tl.ticket_id = %s
+            ORDER BY tl.id
+            """,
+            (ticket_id,),
+        )
+        ticket["legs"] = [dict(r) for r in cur.fetchall()]
+        return ticket
+
+
 @app.post("/admin/settle-all-pending")
 def settle_all_pending(lookback_days: int = 3, _: None = Depends(require_admin_key)) -> dict:
     """Appka nejdřív zkusí AUTOMATICKY doplnit výsledky posledních
