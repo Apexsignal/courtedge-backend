@@ -7,13 +7,22 @@ Princip (viz kontext appky, nahrazuje klasický value/edge betting):
    VŠECH třech trzích (elo_model.py pro výherce, market_models.py pro
    gemy/esa).
 2. Kandidáti appka seřadí ČISTĚ podle vlastní jistoty (model_probability),
-   nejjistější první — appka NEPOROVNÁVÁ s tržní pravděpodobností jako
-   filtr "beru/neberu". Tržní kurz appka použije až v kroku 4.
+   nejjistější první.
 3. Appka aplikuje bezpečnostní filtry PŘED řazením (ne až po něm):
    - vyřadit hráče s nedávnou historií skreče (retirement)
    - vyřadit hráče s málo odehranými zápasy (nedůvěryhodný rating)
    - vyřadit kandidáty pod prahem minimální jistoty pro daný trh
      (market_thresholds v DB, různé pro tři trhy)
+   - vyřadit kandidáty, kde model_probability NEPŘEKONÁ tržní kurz
+     (appka do 2026-08-26 tohle nekontrolovala — vystačila si s
+     vlastní jistotou nad prahem, bez ohledu na to, co si myslí trh).
+     appka přidala tenhle filtr po reálném prohraném tiketu: leg
+     Udvardy–Joint prošel appčinou jistotou jen 61,9 % (Elo obou
+     hráček skoro identické — 1586 vs 1592), zatímco kurz 1,39
+     implikoval skoro 72% jistotu na straně trhu. Vybraný byl jen
+     proto, že kurz padl do pásma 1,3–2,0 — appka byla ve skutečnosti
+     MÉNĚ přesvědčená než trh, ne víc. Leg prohrál. appce proto od
+     teď nestačí být "dost jistá", musí být jistější než trh.
 4. Appka vezme 1 až MAX_TICKET_LEGS nejjistějších kandidátů z RŮZNÝCH
    zápasů, bez ohledu na to, jaký z toho vyjde kombinovaný kurz.
    Appka to dřív měla svázané pevným pásmem 2,00–3,00, ale appka
@@ -92,6 +101,9 @@ def passes_safety_filters(
 
     if candidate.model_probability < threshold.min_confidence:
         return False
+
+    if candidate.market_odds is not None and candidate.model_probability <= 1.0 / candidate.market_odds:
+        return False  # appka musí být jistější než trh (viz modulový docstring, 2026-08-26) — kandidáty bez kurzu appka tímhle nefiltruje, u nich appka nemá s čím srovnávat
 
     if (
         context.player_a_matches_played_12mo < threshold.min_matches_played_12mo
