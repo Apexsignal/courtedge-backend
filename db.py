@@ -424,6 +424,21 @@ def get_users_tickets(user_id: int) -> list[dict]:
         return [dict(r) for r in cur.fetchall()]
 
 
+def count_daily_tickets_since(ticket_type: str, since_utc) -> int:
+    """appka spočítá appčiny vlastní (user_id IS NULL) broadcast tikety
+    daného typu vytvořené od zadaného UTC okamžiku — appka to používá jako
+    pojistku proti dvojímu vygenerování ve stejný den (viz /admin/daily-
+    tickets), kdyby appka spustila cron/test dvakrát a druhé volání by jinak
+    tiše přepsalo appky ranní tiket novým (viz 2026-08-27, appka zjistila,
+    že druhé generování vyřadilo zápas, co už mezitím začal)."""
+    with get_cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) AS c FROM tickets WHERE ticket_type = %s AND user_id IS NULL AND created_at >= %s",
+            (ticket_type, since_utc),
+        )
+        return cur.fetchone()["c"]
+
+
 def get_latest_daily_ticket(ticket_type: str = "favorites") -> Optional[dict]:
     """Appka vrátí appčin nejnovější VLASTNÍ (user_id IS NULL) tiket daného
     typu i s legy a jmény hráčů — appka to používá pro zamčenou webovou

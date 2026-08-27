@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 from datetime import date, datetime, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -255,6 +256,24 @@ def _generate_and_send(build_fn, ticket_type: str, no_candidate_reason: str, use
 def daily_tickets(send_telegram: bool = True, _: None = Depends(require_admin_key)) -> dict:
     daily_user_id = os.environ.get("DAILY_TICKETS_USER_ID")
     user_id = int(daily_user_id) if daily_user_id else None
+
+    # Pojistka proti dvojímu vygenerování ve stejný den (2026-08-27) — appka
+    # dřív žádnou neměla, takže druhé volání (ruční test, retry po chybě...)
+    # tiše přepsalo ranní tiket novým, i kdyby mezitím některý zápas z
+    # prvního tiketu už začal/skončil a appka ho musela z nové kombinace
+    # vynechat (reálně nastalo — appka místo dobrého ranního tiketu vrátila
+    # horší náhradu). Appka teď radši vrátí ten, co už dnes vygenerovala.
+    today_prague = datetime.now(ZoneInfo("Europe/Prague"))
+    today_start_utc = today_prague.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+    if db.count_daily_tickets_since("favorites", today_start_utc) > 0:
+        existing = db.get_latest_daily_ticket("favorites")
+        return {
+            "favorites": {
+                "generated": False,
+                "reason": "already_generated_today",
+                "ticket_id": existing["id"] if existing else None,
+            }
+        }
 
     return {
         "favorites": _generate_and_send(
