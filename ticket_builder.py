@@ -300,8 +300,12 @@ def build_favorites_ticket(candidates: list[Candidate], min_total_odds: float = 
     FAVORITE_MAX_LEG_ODDS, seřadí je podle jistoty a přidává je jeden
     po druhém (z RŮZNÝCH zápasů), dokud kombinovaný kurz nedosáhne
     `min_total_odds`, nebo appka nedojde na MAX_TICKET_LEGS. Appka
-    vrátí None, pokud nemá ani jednoho kandidáta v pásmu — jinak appka
-    vrátí tiket i pod `min_total_odds`, pokud appce kandidáti nestačí.
+    vrátí None, pokud nemá ani jednoho kandidáta v pásmu, NEBO pokud
+    ani se všemi dostupnými kandidáty appka na `min_total_odds`
+    nedosáhne — appka do 2026-08-27 v tomhle druhém případě posílala
+    tiket i pod cílový kurz (např. jediný leg 1,45 po vyřazení
+    Winston-Salem), uživatel ale chce tvrdé minimum: raději appka ten
+    den nepošle nic, než aby poslala tiket pod domluvenou hranicí 1,8.
     """
     in_band = [
         c for c in candidates
@@ -327,6 +331,10 @@ def build_favorites_ticket(candidates: list[Candidate], min_total_odds: float = 
         combined_odds *= c.market_odds
         if len(legs) >= MAX_TICKET_LEGS:
             break
+
+    if combined_odds < min_total_odds:
+        return None  # appka raději nic nepošle, než pod domluvenou hranicí
+
     return BuiltTicket(legs=legs, total_odds=round(combined_odds, 3))
 
 

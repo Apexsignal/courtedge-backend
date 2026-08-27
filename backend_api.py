@@ -281,7 +281,7 @@ def daily_tickets(send_telegram: bool = True, force: bool = False, _: None = Dep
     return {
         "favorites": _generate_and_send(
             ticket_generation.generate_daily_ticket, "favorites",
-            "Appka nenašla ani jednoho favorita v pásmu 1,2-1,7.", user_id, send_telegram,
+            "Appka nenašla favority v pásmu 1,2-1,7, nebo s nimi nedosáhla kombinovaného kurzu 1,8.", user_id, send_telegram,
         ),
     }
 
