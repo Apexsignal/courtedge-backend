@@ -303,29 +303,6 @@ def submit_match_result(body: MatchResultRequest, _: None = Depends(require_admi
     return {"match_id": body.match_id, "status": "finished"}
 
 
-@app.get("/admin/debug-ticket-history")
-def debug_ticket_history(days: int = 10, _: None = Depends(require_admin_key)) -> list[dict]:
-    """Dočasný diagnostický endpoint — appka potřebuje statistiku appčiných
-    vlastních favorite tiketů (výher/proher) za posledních `days` dní pro
-    uživatele. Smaže se hned po vytvoření tabulky."""
-    with db.get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT id, status, total_odds, created_at
-            FROM tickets
-            WHERE ticket_type = 'favorites' AND user_id IS NULL
-              AND created_at >= now() - (%s || ' days')::interval
-            ORDER BY created_at
-            """,
-            (days,),
-        )
-        rows = [dict(r) for r in cur.fetchall()]
-        for r in rows:
-            r["created_at"] = r["created_at"].isoformat()
-            r["total_odds"] = float(r["total_odds"])
-        return rows
-
-
 @app.post("/admin/settle-all-pending")
 def settle_all_pending(lookback_days: int = 3, _: None = Depends(require_admin_key)) -> dict:
     """Appka nejdřív zkusí AUTOMATICKY doplnit výsledky posledních
