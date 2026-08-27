@@ -54,7 +54,7 @@ jobs:
             sport: "tenis",
             external_ticket_id: .id,
             total_odds: .total_odds,
-            legs: [.legs[] | {match: .match, tourney: .tourney_name, selection: .selection, odds: .odds}]
+            legs: [.legs[] | {match: .match, tourney: .tourney_name, kickoff: .kickoff, selection: .selection, odds: .odds}]
           }')
           curl -sS -f -X POST "$APEXSIGNAL_API_BASE_URL/admin/external-tickets/ingest" \
             -H "X-Admin-Key: $APEXSIGNAL_ADMIN_TASK_KEY" \

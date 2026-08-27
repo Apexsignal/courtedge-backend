@@ -452,6 +452,7 @@ def admin_today_ticket_detail(ticket_type: str = "favorites", _: None = Depends(
     if ticket is None:
         return {"ready": False}
 
+    from zoneinfo import ZoneInfo
     from ticket_telegram import selection_label
 
     legs = [
@@ -460,6 +461,7 @@ def admin_today_ticket_detail(ticket_type: str = "favorites", _: None = Depends(
             "tourney_name": leg["tourney_name"],
             "selection": selection_label(leg["market_code"], leg["selection"], leg["line"], leg["player_a"], leg["player_b"]),
             "odds": float(leg["market_odds"]) if leg["market_odds"] is not None else None,
+            "kickoff": leg["start_time"].astimezone(ZoneInfo("Europe/Prague")).strftime("%Y-%m-%d %H:%M") if leg.get("start_time") else None,
         }
         for leg in ticket["legs"]
     ]
