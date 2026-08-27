@@ -253,7 +253,7 @@ def _generate_and_send(build_fn, ticket_type: str, no_candidate_reason: str, use
 
 
 @app.post("/admin/daily-tickets")
-def daily_tickets(send_telegram: bool = True, _: None = Depends(require_admin_key)) -> dict:
+def daily_tickets(send_telegram: bool = True, force: bool = False, _: None = Depends(require_admin_key)) -> dict:
     daily_user_id = os.environ.get("DAILY_TICKETS_USER_ID")
     user_id = int(daily_user_id) if daily_user_id else None
 
@@ -262,10 +262,13 @@ def daily_tickets(send_telegram: bool = True, _: None = Depends(require_admin_ke
     # tiše přepsalo ranní tiket novým, i kdyby mezitím některý zápas z
     # prvního tiketu už začal/skončil a appka ho musela z nové kombinace
     # vynechat (reálně nastalo — appka místo dobrého ranního tiketu vrátila
-    # horší náhradu). Appka teď radši vrátí ten, co už dnes vygenerovala.
+    # horší náhradu). Appka teď radši vrátí ten, co už dnes vygenerovala —
+    # `force=true` appku obchází (appka to potřebuje jen výjimečně, např.
+    # hned po nasazení opravy výběru kandidátů, appka ať nemusí čekat na
+    # zítřek), volající za to nese odpovědnost sám.
     today_prague = datetime.now(ZoneInfo("Europe/Prague"))
     today_start_utc = today_prague.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
-    if db.count_daily_tickets_since("favorites", today_start_utc) > 0:
+    if not force and db.count_daily_tickets_since("favorites", today_start_utc) > 0:
         existing = db.get_latest_daily_ticket("favorites")
         return {
             "favorites": {
