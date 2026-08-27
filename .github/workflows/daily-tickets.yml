@@ -1,7 +1,15 @@
 name: Denní tiket
 
-# Appka tohle spouští PLNĚ automatizovaně, bez manuálního schválení mezi
-# jednotlivými kroky (stejný princip appka zvolila u ApexSignalu) —
+# 2026-08-27 — appka přestala tiket posílat appčinu VLASTNÍMU Telegramu
+# rovnou (send_telegram=false níže). Majitel chce appky (fotbal i tenis)
+# doručovat jedním kanálem se stejným schvalováním — appka teď dnešní
+# tenisový tiket jen vygeneruje a předá appce ApexSignal
+# (`/admin/external-tickets/ingest`), kde čeká na ruční schválení na
+# apexsignal.cz/admin-prodejci stejně jako appčin fotbalový tiket.
+# Vyžaduje NOVÉ repo secrets (appka je do GitHubu sama zapsat nemůže):
+# APEXSIGNAL_API_BASE_URL a APEXSIGNAL_ADMIN_TASK_KEY (appka použije
+# stejnou hodnotu jako ADMIN_TASK_KEY na apexsignal-backend).
+#
 # 06:00 UTC odpovídá 7:00 SEČ / 8:00 SELČ (appka bere fixní UTC čas,
 # takže se posun mezi zimním a letním časem appce "rozjede" o hodinu,
 # appka to zatím neřeší, jen tuhle mez appka zdokumentovala).
@@ -16,6 +24,8 @@ jobs:
     env:
       API_BASE_URL: ${{ secrets.API_BASE_URL }}
       ADMIN_TASK_KEY: ${{ secrets.ADMIN_TASK_KEY }}
+      APEXSIGNAL_API_BASE_URL: ${{ secrets.APEXSIGNAL_API_BASE_URL }}
+      APEXSIGNAL_ADMIN_TASK_KEY: ${{ secrets.APEXSIGNAL_ADMIN_TASK_KEY }}
     steps:
       - name: Sync ATP zápasů a kurzů
         run: |
@@ -27,10 +37,29 @@ jobs:
           curl -sS -f -X POST "$API_BASE_URL/admin/sync-api-tennis?tour=wta&days_ahead=7" \
             -H "X-Admin-Key: $ADMIN_TASK_KEY"
 
-      - name: Vygenerovat a odeslat denní tiket na Telegram
+      - name: Vygenerovat denní tiket (appka ho NEODESÍLÁ — jen uloží)
         run: |
-          curl -sS -f -X POST "$API_BASE_URL/admin/daily-tickets" \
+          curl -sS -f -X POST "$API_BASE_URL/admin/daily-tickets?send_telegram=false" \
             -H "X-Admin-Key: $ADMIN_TASK_KEY"
+
+      - name: Předat dnešní tiket appce ApexSignal ke schválení
+        run: |
+          detail=$(curl -sS -f "$API_BASE_URL/admin/today-ticket-detail" -H "X-Admin-Key: $ADMIN_TASK_KEY")
+          ready=$(echo "$detail" | jq -r '.ready')
+          if [ "$ready" != "true" ]; then
+            echo "Appka dnes nemá žádný tiket k předání (ready=false) — appka tenhle krok přeskočí."
+            exit 0
+          fi
+          payload=$(echo "$detail" | jq '{
+            sport: "tenis",
+            external_ticket_id: .id,
+            total_odds: .total_odds,
+            legs: [.legs[] | {match: .match, tourney: .tourney_name, selection: .selection, odds: .odds}]
+          }')
+          curl -sS -f -X POST "$APEXSIGNAL_API_BASE_URL/admin/external-tickets/ingest" \
+            -H "X-Admin-Key: $APEXSIGNAL_ADMIN_TASK_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$payload"
 
       # `if: always()` — appka chce vyhodnotit dohrané tikety i když by
       # některý z kroků výš selhal (např. appka nenašla platnou

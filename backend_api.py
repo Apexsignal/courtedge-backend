@@ -419,6 +419,41 @@ def member_today_ticket(user_id: int = Depends(require_active_subscription)) -> 
 
 
 # ------------------------------------------------------------
+# Admin — dnešní tiket bez gatingu na appčino vlastní předplatné (2026-08-27).
+# Appka tohle přidala, aby si SESTERSKÁ appka (ApexSignal) mohla appčin
+# denní tiket vytáhnout a nabídnout ho appce ke schválení na vlastním
+# admin webu — viz /admin/daily-tickets?send_telegram=false výš (appka
+# tam tiket JEN vygeneruje a uloží, appka ho sama Telegramu nepošle) a
+# apexsignal-backend `/admin/external-tickets/ingest`. Stejná data jako
+# /member/today-ticket, jen admin-key místo přihlášení.
+# ------------------------------------------------------------
+@app.get("/admin/today-ticket-detail")
+def admin_today_ticket_detail(ticket_type: str = "favorites", _: None = Depends(require_admin_key)) -> dict:
+    ticket = db.get_latest_daily_ticket(ticket_type)
+    if ticket is None:
+        return {"ready": False}
+
+    from ticket_telegram import selection_label
+
+    legs = [
+        {
+            "match": f"{leg['player_a']} – {leg['player_b']}",
+            "tourney_name": leg["tourney_name"],
+            "selection": selection_label(leg["market_code"], leg["selection"], leg["line"], leg["player_a"], leg["player_b"]),
+            "odds": float(leg["market_odds"]) if leg["market_odds"] is not None else None,
+        }
+        for leg in ticket["legs"]
+    ]
+    return {
+        "ready": True,
+        "id": ticket["id"],
+        "total_odds": float(ticket["total_odds"]),
+        "created_at": ticket["created_at"].isoformat(),
+        "legs": legs,
+    }
+
+
+# ------------------------------------------------------------
 # Veřejný carousel skutečných výher na appčině prodejní stránce — appka
 # to nechce ručně přepisovat po každé výhře (viz courtedge_sales.html),
 # proto sem appka tikety plní přímo z appčiny vlastní DB. Bez přihlášení.
