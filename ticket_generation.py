@@ -13,6 +13,7 @@ import head_to_head
 from elo_model import PlayerRating, combined_confidence, win_probability
 from market_models import estimate_total_aces, estimate_total_games
 from ticket_builder import (
+    EXCLUDED_TOURNAMENTS,
     BuiltTicket,
     Candidate,
     MarketThreshold,
@@ -75,6 +76,9 @@ def build_candidates_from_pending_matches() -> tuple[list[Candidate], dict[int, 
     match_meta: dict[int, dict] = {}
 
     for m in matches:
+        if m.get("tourney_name") in EXCLUDED_TOURNAMENTS:
+            continue  # appka viz ticket_builder.EXCLUDED_TOURNAMENTS — appka na tomhle turnaji zatím favoritům nevěří
+
         surface = m.get("surface") or "hard"
         rating_a = _rating_from_row(m, "a")
         rating_b = _rating_from_row(m, "b")

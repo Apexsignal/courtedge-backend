@@ -322,40 +322,6 @@ def submit_match_result(body: MatchResultRequest, _: None = Depends(require_admi
     return {"match_id": body.match_id, "status": "finished"}
 
 
-@app.get("/admin/debug-all-legs")
-def debug_all_legs(days: int = 10, _: None = Depends(require_admin_key)) -> list[dict]:
-    """Dočasný diagnostický endpoint — appka hledá vzorec v prohraných
-    appčiných favorite tiketech (Elo rozdíl, appčina jistota vs trh,
-    surface, úroveň turnaje). Smaže se hned po analýze."""
-    with db.get_cursor() as cur:
-        cur.execute(
-            """
-            SELECT t.id AS ticket_id, t.status AS ticket_status, t.created_at,
-                   tl.leg_result, tl.model_probability, tl.market_odds, tl.selection,
-                   pa.full_name AS player_a, pa.elo_overall AS elo_a,
-                   pb.full_name AS player_b, pb.elo_overall AS elo_b,
-                   m.surface, m.tourney_level, m.tourney_name, m.retirement
-            FROM tickets t
-            JOIN ticket_legs tl ON tl.ticket_id = t.id
-            JOIN matches m ON m.id = tl.match_id
-            JOIN players pa ON pa.id = m.player_a_id
-            JOIN players pb ON pb.id = m.player_b_id
-            WHERE t.ticket_type = 'favorites' AND t.user_id IS NULL
-              AND t.created_at >= now() - (%s || ' days')::interval
-            ORDER BY t.created_at, tl.id
-            """,
-            (days,),
-        )
-        rows = [dict(r) for r in cur.fetchall()]
-        for r in rows:
-            r["created_at"] = r["created_at"].isoformat()
-            r["model_probability"] = float(r["model_probability"])
-            r["market_odds"] = float(r["market_odds"]) if r["market_odds"] is not None else None
-            r["elo_a"] = float(r["elo_a"])
-            r["elo_b"] = float(r["elo_b"])
-        return rows
-
-
 @app.post("/admin/settle-all-pending")
 def settle_all_pending(lookback_days: int = 3, _: None = Depends(require_admin_key)) -> dict:
     """Appka nejdřív zkusí AUTOMATICKY doplnit výsledky posledních

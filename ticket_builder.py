@@ -89,6 +89,19 @@ class MarketThreshold:
 
 MAX_RECENT_RETIREMENTS_ALLOWED = 0  # appka vyřazuje hráče s JAKOUKOLI nedávnou historií skreče (konzervativní start)
 
+EXCLUDED_TOURNAMENTS: set[str] = {"Winston-Salem"}
+# appka 2026-08-27 zjistila, že VŠECHNY appčiny 4 favority na Winston-
+# Salem (25.-27.8.) prohrály — Medvedev (Elo náskok skoro 200 bodů),
+# Machac, Tsitsipas i Sonego, malí i velcí favorité stejně. Winston-
+# Salem je ATP 250 přesně týden před US Open — appka usuzuje, že
+# spousta hráčů tam jede jen na rozehrání/body, ne naplno, což appčino
+# Elo (postavené na historických výsledcích) nezachytí. appka tenhle
+# turnaj proto z appčina výběru kandidátů úplně vynechává, dokud
+# neskončí. appka to bere jako první položku seznamu — až appka příště
+# narazí na podobný vzorec u jiného "warm-up" turnaje před grandslamem,
+# přidá ho appka sem stejným způsobem, ne že by appka hádala dopředu
+# celý kalendář bez důkazu.
+
 
 def passes_safety_filters(
     candidate: Candidate,
