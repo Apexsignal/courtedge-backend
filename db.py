@@ -459,7 +459,7 @@ def get_latest_daily_ticket(ticket_type: str = "favorites") -> Optional[dict]:
         ticket = dict(row)
         cur.execute(
             """
-            SELECT tl.market_code, tl.selection, tl.line, tl.market_odds,
+            SELECT tl.market_code, tl.selection, tl.line, tl.market_odds, tl.model_probability,
                    pa.full_name AS player_a, pb.full_name AS player_b,
                    m.tourney_name, m.start_time
             FROM ticket_legs tl

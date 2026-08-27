@@ -286,6 +286,19 @@ def daily_tickets(send_telegram: bool = True, force: bool = False, _: None = Dep
     }
 
 
+@app.post("/admin/resend-latest-ticket")
+def resend_latest_ticket(ticket_type: str = "favorites", _: None = Depends(require_admin_key)) -> dict:
+    """appka pošle na Telegram UŽ vygenerovaný nejnovější tiket, bez dalšího
+    generování — hodí se to, když appka tiket vygenerovala přes
+    /admin/daily-tickets?send_telegram=false (např. jen na ověření) a
+    chce ho pak reálně poslat, bez zbytečného duplicitního řádku navíc."""
+    ticket = db.get_latest_daily_ticket(ticket_type)
+    if ticket is None:
+        raise HTTPException(404, "Appka žádný tiket tohohle typu nenašla.")
+    send_ticket_to_telegram({**ticket, "ticket_id": ticket["id"], "ticket_type": ticket_type})
+    return {"sent": True, "ticket_id": ticket["id"], "total_odds": float(ticket["total_odds"])}
+
+
 class AlertRequest(BaseModel):
     message: str
 
