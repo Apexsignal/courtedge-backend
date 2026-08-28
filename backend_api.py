@@ -343,6 +343,25 @@ def submit_match_result(body: MatchResultRequest, _: None = Depends(require_admi
     return {"match_id": body.match_id, "status": "finished"}
 
 
+@app.get("/admin/debug-current-candidates")
+def debug_current_candidates(_: None = Depends(require_admin_key)) -> list[dict]:
+    """Dočasný diagnostický endpoint — appka chce uživateli ukázat, jak
+    blízko dnešní kandidáti byli k novému prahu 0,65 (nebo appka nemá
+    nic ani na starém 0,60). Smaže se hned po ověření."""
+    candidates, match_meta = ticket_generation.build_candidates_from_pending_matches()
+    result = []
+    for c in candidates:
+        if c.market_code != "match_winner" or c.market_odds is None:
+            continue
+        m = match_meta[c.match_id]
+        result.append({
+            "player_a": m.get("player_a_name"), "player_b": m.get("player_b_name"),
+            "tourney_name": m.get("tourney_name"), "selection": c.selection,
+            "model_probability": round(c.model_probability, 4), "market_odds": c.market_odds,
+        })
+    return sorted(result, key=lambda r: -r["model_probability"])
+
+
 @app.post("/admin/settle-all-pending")
 def settle_all_pending(lookback_days: int = 3, _: None = Depends(require_admin_key)) -> dict:
     """Appka nejdřív zkusí AUTOMATICKY doplnit výsledky posledních
