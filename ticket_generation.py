@@ -155,7 +155,7 @@ def build_candidates_from_pending_matches() -> tuple[list[Candidate], dict[int, 
     return candidates, match_meta
 
 
-def generate_daily_ticket(user_id: Optional[int] = None) -> Optional[dict]:
+def generate_daily_ticket(user_id: Optional[int] = None, exclude_players: Optional[set[str]] = None) -> Optional[dict]:
     """
     Appka vrátí JEDEN denní tiket, postavený jen z trhu výherce zápasu
     (match_winner) — appka ho 2026-08-12 přesunula z gemů na favority
@@ -171,10 +171,29 @@ def generate_daily_ticket(user_id: Optional[int] = None) -> Optional[dict]:
     samotného (viz ticket_builder.py, docstring u
     build_favorites_ticket).
 
+    `exclude_players` appka přidala 2026-08-28 — uživatel chtěl vynechat
+    zápas hráče, co už měl v jiném tiketu (nechtěl si ho zdvojit).
+    appka porovnává case-insensitive podřetězec proti uloženému jménu
+    hráče (`m.player_a_name`/`player_b_name`, obvykle appka zkratka
+    jako "Y. Bu"), ne přesnou shodu.
+
     Appka vrátí None, pokud nemá v 24hodinovém okně ani jednoho
     kandidáta v pásmu 1,2-1,7.
     """
     candidates, match_meta = build_candidates_from_pending_matches()
+
+    if exclude_players:
+        needles = {p.lower() for p in exclude_players}
+        excluded_match_ids = {
+            mid for mid, m in match_meta.items()
+            if any(
+                needle in (m.get("player_a_name") or "").lower()
+                or needle in (m.get("player_b_name") or "").lower()
+                for needle in needles
+            )
+        }
+        candidates = [c for c in candidates if c.match_id not in excluded_match_ids]
+
     winner_candidates = [c for c in candidates if c.market_code == "match_winner"]
 
     built = build_favorites_ticket(winner_candidates)

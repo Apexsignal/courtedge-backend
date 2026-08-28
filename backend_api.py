@@ -237,8 +237,8 @@ def sync_odds(_: None = Depends(require_admin_key)) -> dict:
 # generate_games_ticket` appka v modulu nechává nedotčenou, appka ji
 # funkčně otestovala i reálnými daty a mohla by se hodit znovu.
 # ------------------------------------------------------------
-def _generate_and_send(build_fn, ticket_type: str, no_candidate_reason: str, user_id: Optional[int], send_telegram: bool) -> dict:
-    ticket = build_fn(user_id=user_id)
+def _generate_and_send(build_fn, ticket_type: str, no_candidate_reason: str, user_id: Optional[int], send_telegram: bool, **build_kwargs) -> dict:
+    ticket = build_fn(user_id=user_id, **build_kwargs)
     if ticket is None:
         return {"generated": False, "reason": no_candidate_reason}
 
@@ -253,9 +253,13 @@ def _generate_and_send(build_fn, ticket_type: str, no_candidate_reason: str, use
 
 
 @app.post("/admin/daily-tickets")
-def daily_tickets(send_telegram: bool = True, force: bool = False, _: None = Depends(require_admin_key)) -> dict:
+def daily_tickets(
+    send_telegram: bool = True, force: bool = False, exclude_players: str = "",
+    _: None = Depends(require_admin_key),
+) -> dict:
     daily_user_id = os.environ.get("DAILY_TICKETS_USER_ID")
     user_id = int(daily_user_id) if daily_user_id else None
+    exclude_set = {p.strip() for p in exclude_players.split(",") if p.strip()} or None
 
     # Pojistka proti dvojímu vygenerování ve stejný den (2026-08-27) — appka
     # dřív žádnou neměla, takže druhé volání (ruční test, retry po chybě...)
@@ -282,6 +286,7 @@ def daily_tickets(send_telegram: bool = True, force: bool = False, _: None = Dep
         "favorites": _generate_and_send(
             ticket_generation.generate_daily_ticket, "favorites",
             "Appka nenašla favority v pásmu 1,2-1,7, nebo s nimi nedosáhla kombinovaného kurzu 1,8.", user_id, send_telegram,
+            exclude_players=exclude_set,
         ),
     }
 
