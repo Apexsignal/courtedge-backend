@@ -425,6 +425,18 @@ def create_coupon(body: CreateCouponRequest, _: None = Depends(require_admin_key
     return {"id": coupon["id"], "code": coupon["code"], "days_granted": coupon["days_granted"], "max_uses": coupon["max_uses"]}
 
 
+@app.post("/admin/market-threshold")
+def set_market_threshold(market_code: str, min_confidence: float, _: None = Depends(require_admin_key)) -> dict:
+    """appka umožní doladit market_thresholds.min_confidence bez psql
+    přístupu k produkční DB — appka to potřebuje laďovat opakovaně
+    podle reálných výsledků (viz ticket_builder.py)."""
+    try:
+        row = db.set_market_threshold_confidence(market_code, min_confidence)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc))
+    return {"market_code": row["market_code"], "min_confidence": float(row["min_confidence"])}
+
+
 # ------------------------------------------------------------
 # Web s dnešním tiketem — appka to volá přímo z prohlížeče (viz
 # netlify_site/tiket.html), zamčené skutečným přihlášením a aktivním

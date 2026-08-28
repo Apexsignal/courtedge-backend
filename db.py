@@ -244,6 +244,22 @@ def get_market_thresholds() -> dict[str, dict]:
         return {row["market_code"]: dict(row) for row in cur.fetchall()}
 
 
+def set_market_threshold_confidence(market_code: str, min_confidence: float) -> dict:
+    """appka mění min_confidence daného prahu bez přímého zásahu přes psql
+    (appčin sandbox se na produkční DB napřímo nedostane) — thresholdy
+    appka takhle laďovala i minule (viz README, "Zpřísnit výběr
+    favoritů"), ne editací schema.sql se samostatným nasazením."""
+    with get_cursor(commit=True) as cur:
+        cur.execute(
+            "UPDATE market_thresholds SET min_confidence = %s WHERE market_code = %s RETURNING *",
+            (min_confidence, market_code),
+        )
+        row = cur.fetchone()
+        if row is None:
+            raise ValueError(f"Appka trh '{market_code}' nenašla.")
+        return dict(row)
+
+
 # ------------------------------------------------------------
 # Zápasy (nadcházející, s kurzy — appčin pracovní seznam pro generování)
 # ------------------------------------------------------------
