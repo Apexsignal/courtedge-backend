@@ -344,9 +344,19 @@ def submit_match_result(body: MatchResultRequest, _: None = Depends(require_admi
 
 
 @app.get("/admin/debug-current-candidates")
-def debug_current_candidates(_: None = Depends(require_admin_key)) -> list[dict]:
+def debug_current_candidates(_: None = Depends(require_admin_key)) -> dict:
     """Dočasný diagnostický endpoint — appka chce uživateli ukázat, jak
-    blízko jsou dnešní kandidáti k prahu 0,65. Smaže se hned po ověření."""
+    blízko jsou dnešní kandidáti k prahu 0,65, a kolik zápasů má appka
+    vůbec v okně (i bez kurzu appka je vidí). Smaže se hned po ověření."""
+    pending = db.get_pending_matches()
+    matches_summary = [
+        {
+            "player_a": m.get("player_a_name"), "player_b": m.get("player_b_name"),
+            "tourney_name": m.get("tourney_name"), "start_time": m.get("start_time").isoformat(),
+        }
+        for m in pending
+    ]
+
     candidates, match_meta = ticket_generation.build_candidates_from_pending_matches()
     result = []
     for c in candidates:
@@ -359,7 +369,11 @@ def debug_current_candidates(_: None = Depends(require_admin_key)) -> list[dict]
             "selection": c.selection,
             "model_probability": round(c.model_probability, 4), "market_odds": c.market_odds,
         })
-    return sorted(result, key=lambda r: -r["model_probability"])
+    return {
+        "pending_matches_count": len(pending),
+        "pending_matches": matches_summary,
+        "candidates": sorted(result, key=lambda r: -r["model_probability"]),
+    }
 
 
 @app.post("/admin/settle-all-pending")
