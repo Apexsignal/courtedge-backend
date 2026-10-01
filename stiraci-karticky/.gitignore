@@ -1,0 +1,9 @@
+# Repozitář je veřejný – soukromé fotky a tiskoviny se necommitují.
+# Vygeneruješ je lokálně: python3 tools/prepare.py
+photos-src/
+site/img/*.jpg
+site/img/*.webp
+site/img/*.png
+print/
+*.zip
+.netlify/

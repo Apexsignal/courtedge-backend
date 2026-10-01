@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F3ECF3">
+  <meta name="color-scheme" content="light">
+  <meta name="robots" content="noindex, nofollow">
+  <!-- OG:START (generováno nástrojem tools/prepare.py z config.json) -->
+  <title>Pro Nasťu lásku 💛</title>
+  <meta name="description" content="Deset kartiček, deset zážitků. Setři si svůj dárek.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Pro Nasťu lásku 💛">
+  <meta property="og:description" content="Deset kartiček, deset zážitků. Setři si svůj dárek.">
+  <meta property="og:url" content="https://pro-nastu-lasku.netlify.app/">
+  <meta property="og:image" content="https://pro-nastu-lasku.netlify.app/img/og.jpg">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="cs_CZ">
+  <meta name="twitter:card" content="summary_large_image">
+  <!-- OG:END -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%9B%3C/text%3E%3C/svg%3E">
+  <link rel="apple-touch-icon" href="img/icon-180.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Yeseva+One&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="app" aria-live="polite">
+
+    <!-- 1) Úvod -->
+    <section id="screen-intro" class="screen" aria-label="Úvod">
+      <div class="intro">
+        <figure class="intro__photo">
+          <picture>
+            <source id="cover-webp" type="image/webp">
+            <img id="cover-img" alt="" fetchpriority="high" decoding="async">
+          </picture>
+        </figure>
+        <div class="intro__head">
+          <span class="intro__age" id="intro-age"></span>
+          <div>
+            <h1 class="intro__title" id="intro-title"></h1>
+            <p class="intro__subtitle" id="intro-subtitle"></p>
+          </div>
+        </div>
+        <button class="btn btn--gold btn--big" id="btn-open" type="button">Otevřít dárek</button>
+      </div>
+    </section>
+
+    <!-- 2) Přání -->
+    <section id="screen-greeting" class="screen" aria-label="Přání">
+      <div class="greeting">
+        <div class="greeting__sparkles" aria-hidden="true"></div>
+        <p class="greeting__age" id="greeting-age"></p>
+        <h2 class="greeting__title" id="greeting-title"></h2>
+        <p class="greeting__msg" id="greeting-msg"></p>
+        <p class="greeting__from" id="greeting-from"></p>
+        <button class="btn btn--gold btn--big greeting__btn" id="btn-to-cards" type="button">Ukázat kartičky</button>
+      </div>
+    </section>
+
+    <!-- 3) Kartičky -->
+    <section id="screen-cards" class="screen" aria-label="Kartičky">
+      <header class="topbar">
+        <button class="icon-btn" id="btn-home" type="button" aria-label="Zpět na úvod">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 9.5V20h13V9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="topbar__center">
+          <p class="topbar__count" id="card-count">1 ze 10</p>
+          <div class="dots" id="dots" aria-hidden="true"></div>
+        </div>
+        <button class="icon-btn" id="btn-summary" type="button" aria-label="Přehled kartiček">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+      </header>
+
+      <div class="track-wrap">
+        <button class="nav-arrow nav-arrow--prev" id="btn-prev" type="button" aria-label="Předchozí kartička">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="track" id="track" tabindex="0" aria-roledescription="karusel" aria-label="Kartičky se zážitky"></div>
+        <button class="nav-arrow nav-arrow--next" id="btn-next" type="button" aria-label="Další kartička">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <p class="hint" id="swipe-hint">Listuj do stran ↔ a setři zlaté políčko</p>
+    </section>
+
+    <!-- 4) Závěr / přehled -->
+    <section id="screen-finale" class="screen" aria-label="Přehled">
+      <div class="finale">
+        <p class="finale__kicker" id="finale-kicker">Všechno setřeno!</p>
+        <h2 class="finale__title" id="finale-title"></h2>
+        <p class="finale__lead" id="finale-lead"></p>
+        <ul class="summary" id="summary"></ul>
+        <p class="finale__from" id="finale-from"></p>
+        <button class="btn btn--navy btn--big" id="btn-back" type="button">Zpět na kartičky</button>
+      </div>
+    </section>
+
+  </main>
+
+  <template id="tpl-card">
+    <article class="slide" role="group" aria-roledescription="kartička">
+      <div class="card">
+        <figure class="card__photo">
+          <picture>
+            <source type="image/webp">
+            <img alt="" decoding="async">
+          </picture>
+          <span class="card__badge"></span>
+        </figure>
+        <div class="card__head">
+          <h3 class="card__label"></h3>
+          <span class="card__num"></span>
+        </div>
+        <div class="scratch">
+          <div class="prize">
+            <p class="prize__title"></p>
+            <p class="prize__sub"></p>
+          </div>
+          <canvas class="scratch__foil" aria-label="Zlaté stírací políčko. Setři ho prstem, nebo stiskni Enter." role="button" tabindex="0"></canvas>
+          <div class="stamp" aria-hidden="true"><span class="stamp__word">Uplatněno</span><span class="stamp__date"></span></div>
+        </div>
+        <div class="card__actions">
+          <label class="wish">
+            <span class="wish__label">Tvoje přání</span>
+            <textarea class="wish__input" rows="2" maxlength="300" placeholder="Napiš, co by sis přála…"></textarea>
+          </label>
+          <a class="btn btn--gold btn--claim" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 0 0-7.3 12.8L3.5 20.5l4.3-1.1A8.5 8.5 0 1 0 12 3.5Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+            <span class="btn__text">Uplatnit</span>
+          </a>
+          <a class="sms-link">nebo poslat SMS</a>
+          <p class="card__note"></p>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <canvas class="confetti" id="confetti" aria-hidden="true"></canvas>
+
+  <noscript><p class="noscript">Pro zobrazení dárku prosím povol JavaScript.</p></noscript>
+  <script src="app.js" defer></script>
+</body>
+</html>

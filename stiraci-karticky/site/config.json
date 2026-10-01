@@ -1,0 +1,41 @@
+{
+  "recipient": "Nasťa",
+  "age": 36,
+  "title": "Pro Nasťu lásku",
+  "subtitle": "Deset kartiček, deset zážitků",
+  "greeting": "Všechno nejlepší k narozeninám",
+  "message": "Každá kartička je jeden zážitek. Setři políčko prstem, a až budeš mít chuť, dej mi vědět a já to zařídím.",
+  "validity": "Platí, dokud budeme spolu",
+  "from": "S láskou David a děti",
+  "giverPhone": "+420XXXXXXXXX",
+
+  "siteUrl": "https://pro-nastu-lasku.netlify.app",
+  "ogTitle": "Pro Nasťu lásku 💛",
+  "ogDescription": "Deset kartiček, deset zážitků. Setři si svůj dárek.",
+  "storageKey": "stiraci-karticky-nasta-36",
+
+  "claimMessage": "Lásko, uplatňuju kartičku: {title} 💛",
+  "jokerClaimMessage": "Lásko, uplatňuju kartičku: Žolík 💛 Moje přání: {wish}",
+  "scratchLabel": "Setři",
+  "invitationText": "Naskenuj a setři si svůj dárek",
+
+  "cover": {
+    "photo": "IMG_2139.png",
+    "cropTop": 0,
+    "position": "center 30%",
+    "printFocusY": 0.04
+  },
+
+  "cards": [
+    { "id": "vecere",   "title": "Romantická večeře",    "subtitle": "Italská, v Marině u vody",                                     "photo": "IMG_2140.jpeg" },
+    { "id": "obraz",    "title": "Malujeme obraz",       "subtitle": "Spolu, se sklenkou vína",                                      "photo": "IMG_2149.jpeg" },
+    { "id": "masaz",    "title": "Masáž",                "subtitle": "Ode mě, nebo thajská spolu ve dvou",                           "photo": "IMG_2146.jpeg" },
+    { "id": "divadlo",  "title": "Divadlo nebo muzikál", "subtitle": "V Národním divadle",                                           "photo": "IMG_2148.jpeg" },
+    { "id": "snidane",  "title": "Snídaně do postele",   "subtitle": "A celý den bez povinností",                                    "photo": "IMG_2141.jpeg" },
+    { "id": "wellness", "title": "Wellness ve dvou",     "subtitle": "Celé odpoledne jen pro nás",                                   "photo": "IMG_2145.jpeg" },
+    { "id": "foceni",   "title": "Focení",               "subtitle": "V profi ateliéru, nebo my dva s foťákem na krásném místě",     "photo": "IMG_2144.jpeg" },
+    { "id": "nakupy",   "title": "Nákupy spolu",         "subtitle": "Vyrazíme spolu a vybereš si něco krásného do šatníku",         "photo": "IMG_2142.jpeg" },
+    { "id": "zolik",    "title": "Žolík",                "subtitle": "Tvoje přání",                                                  "photo": "IMG_2143.jpeg", "type": "joker" },
+    { "id": "vylet",    "title": "Výlet mimo Prahu",     "subtitle": "Víkend pro dva, kam budeš chtít",                              "photo": "IMG_2147.jpeg", "main": true }
+  ]
+}
