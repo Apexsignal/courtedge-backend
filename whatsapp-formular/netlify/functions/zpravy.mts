@@ -12,6 +12,11 @@ function clean(v: unknown, max: number) {
   return typeof v === "string" ? v.trim().slice(0, max) : ""
 }
 
+function amount(v: unknown) {
+  const n = typeof v === "number" ? v : parseFloat(String(v ?? "").replace(",", "."))
+  return Number.isFinite(n) && Math.abs(n) < 1e7 ? Math.round(n * 100) / 100 : 0
+}
+
 export default async (req: Request) => {
   const s = store()
 
@@ -30,9 +35,15 @@ export default async (req: Request) => {
     const cas = clean(body.cas, 16)
     const popis = clean(body.popis, 2000)
     const day = cas.slice(0, 10)
-    if (!komu || !popis || !DAY.test(day)) return new Response("Vyplň komu, čas a popisek", { status: 400 })
+    const delka = Number(body.delka)
+    const sluzba = clean(body.sluzba, 1)
+    if (!komu || !DAY.test(day)) return new Response("Vyplň komu a čas", { status: 400 })
+    if (![60, 90, 120].includes(delka)) return new Response("Vyber délku 60, 90 nebo 120 min", { status: 400 })
+    if (sluzba !== "T" && sluzba !== "N") return new Response("Vyber službu T nebo N", { status: 400 })
+    const cena = amount(body.cena)
+    const dop = amount(body.dop)
     const key = `${day}/${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`
-    const item = { komu, cas, popis, vytvoreno: new Date().toISOString() }
+    const item = { komu, cas, popis, delka, sluzba, cena, dop, celkem: cena + dop, vytvoreno: new Date().toISOString() }
     await s.setJSON(key, item)
     return Response.json({ key, ...item }, { status: 201 })
   }
