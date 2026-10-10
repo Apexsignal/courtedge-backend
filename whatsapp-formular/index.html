@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rychlá zpráva</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: jeden úzký sloupec, formulář nahoře, náhled zprávy pod ním */
+:root {
+  --bg: #eef2ef; --card: #ffffff; --fg: #17221c; --muted: #5d6b63;
+  --line: #d3ddd7; --accent: #1f7a4d; --accent-fg: #ffffff; --bubble: #dcf3e3;
+  --display: "Fraunces", Georgia, serif;
+  --body: "Atkinson Hyperlegible", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111815; --card: #1a231f; --fg: #e6eee9; --muted: #9aaba1;
+  --line: #2c3a33; --accent: #3fb47a; --accent-fg: #0c1410; --bubble: #1f3a2b; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111815; --card: #1a231f; --fg: #e6eee9; --muted: #9aaba1;
+  --line: #2c3a33; --accent: #3fb47a; --accent-fg: #0c1410; --bubble: #1f3a2b; color-scheme: dark }
+* { box-sizing: border-box }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 var(--body);
+  padding: 32px 16px calc(32px + env(safe-area-inset-bottom, 0px)); }
+main { max-width: 520px; margin: 0 auto; display: grid; gap: 20px }
+h1 { font: 600 2rem/1.1 var(--display); margin: 0; text-wrap: balance }
+.sub { color: var(--muted); margin: 6px 0 0 }
+form, .view { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: grid; gap: 16px }
+label { display: grid; gap: 6px; font-weight: 700; font-size: .9rem }
+label span { font-weight: 400; color: var(--muted) }
+input, textarea { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 10px; padding: 11px 12px; width: 100% }
+textarea { min-height: 110px; resize: vertical }
+input:focus, textarea:focus, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.row { display: flex; flex-wrap: wrap; gap: 10px }
+button, .btn { font: 700 1rem var(--body); border-radius: 10px; padding: 12px 16px; cursor: pointer;
+  border: 1px solid var(--accent); text-decoration: none; text-align: center; flex: 1 1 180px }
+.primary { background: var(--accent); color: var(--accent-fg) }
+.ghost { background: transparent; color: var(--accent) }
+.bubble { background: var(--bubble); border-radius: 12px 12px 12px 4px; padding: 14px 16px; white-space: pre-wrap; overflow-wrap: anywhere }
+.k { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
+.note { font-size: .85rem; color: var(--muted); margin: 0 }
+#toast { min-height: 1.4em; font-size: .9rem; color: var(--accent); margin: 0 }
+dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px }
+dt { color: var(--muted) } dd { margin: 0; font-weight: 700; overflow-wrap: anywhere }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1 id="title">Rychlá zpráva</h1>
+    <p class="sub" id="subtitle">Vyplň komu, kdy a co. Pošli přes WhatsApp, nebo sdílej odkaz.</p>
+  </header>
+
+  <form id="form" autocomplete="off">
+    <label for="komu">Komu <span>telefonní číslo (např. +420 777 123 456) nebo jméno</span>
+      <input id="komu" required placeholder="+420 777 123 456 nebo Petr">
+    </label>
+    <label for="cas">Čas
+      <input id="cas" type="datetime-local" required>
+    </label>
+    <label for="popis">Popisek
+      <textarea id="popis" required placeholder="Např. Trénink na kurtu č. 3, vezmi míče."></textarea>
+    </label>
+
+    <div>
+      <div class="k">Náhled zprávy</div>
+      <div class="bubble" id="preview"></div>
+    </div>
+
+    <div class="row">
+      <button type="submit" class="primary">Odeslat přes WhatsApp</button>
+      <button type="button" class="ghost" id="share">Zkopírovat odkaz</button>
+    </div>
+    <p id="toast" role="status"></p>
+    <p class="note">Když zadáš číslo, WhatsApp otevře chat přímo s ním. Když zadáš jméno, vybereš kontakt v WhatsAppu sám.</p>
+  </form>
+
+  <section class="view" id="view" hidden>
+    <dl>
+      <dt>Komu</dt><dd id="vKomu"></dd>
+      <dt>Čas</dt><dd id="vCas"></dd>
+    </dl>
+    <div class="bubble" id="vPopis"></div>
+    <div class="row">
+      <a class="btn primary" id="vWa" target="_blank" rel="noopener">Poslat dál přes WhatsApp</a>
+      <button type="button" class="ghost" id="edit">Upravit / nová zpráva</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const komu = $('komu'), cas = $('cas'), popis = $('popis');
+
+// Čísla: odstraní mezery a "+", převede 00420 → 420; 9 číslic bez předvolby → +420
+function phoneDigits(v) {
+  const s = v.trim();
+  if (!/^[+\d][\d\s().-]{5,}$/.test(s)) return null;
+  let d = s.replace(/\D/g, '');
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.length === 9) d = '420' + d;
+  return d.length >= 10 ? d : null;
+}
+function fmtTime(v) {
+  if (!v) return '';
+  const d = new Date(v);
+  if (isNaN(d)) return v;
+  return d.toLocaleString('cs-CZ', { weekday: 'short', day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+function message(data) {
+  const lines = [];
+  if (data.komu && !phoneDigits(data.komu)) lines.push('Ahoj ' + data.komu + ',');
+  if (data.cas) lines.push('🕒 ' + fmtTime(data.cas));
+  if (data.popis) lines.push(data.popis);
+  return lines.join('\n');
+}
+function waLink(data) {
+  const d = phoneDigits(data.komu || '');
+  return 'https://wa.me/' + (d || '') + '?text=' + encodeURIComponent(message(data));
+}
+// Data se ukládají do části za # → nic se neposílá na server
+function encode(data) {
+  const b = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  return b.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function decode(s) {
+  try {
+    const b = s.replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(decodeURIComponent(escape(atob(b))));
+  } catch { return null; }
+}
+const current = () => ({ komu: komu.value.trim(), cas: cas.value, popis: popis.value.trim() });
+const shareUrl = data => location.href.split('#')[0] + '#z=' + encode(data);
+
+function refresh() { $('preview').textContent = message(current()) || 'Tady uvidíš, jak bude zpráva vypadat.'; }
+[komu, cas, popis].forEach(el => el.addEventListener('input', refresh));
+
+$('form').addEventListener('submit', e => {
+  e.preventDefault();
+  window.open(waLink(current()), '_blank', 'noopener');
+});
+
+$('share').addEventListener('click', async () => {
+  if (!$('form').reportValidity()) return;
+  const url = shareUrl(current());
+  try {
+    if (navigator.share) { await navigator.share({ title: 'Zpráva', url }); $('toast').textContent = 'Odkaz sdílen.'; return; }
+  } catch (err) { if (err.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(url); $('toast').textContent = 'Odkaz zkopírován. Pošli ho komukoli.'; }
+  catch { prompt('Zkopíruj odkaz:', url); }
+});
+
+$('edit').addEventListener('click', () => { history.replaceState(null, '', location.pathname + location.search); render(); });
+
+function render() {
+  const m = location.hash.match(/^#z=(.+)$/);
+  const data = m && decode(m[1]);
+  $('form').hidden = !!data; $('view').hidden = !data;
+  if (data) {
+    $('title').textContent = 'Zpráva pro tebe';
+    $('subtitle').textContent = 'Někdo s tebou sdílel tyto údaje.';
+    $('vKomu').textContent = data.komu || '–';
+    $('vCas').textContent = fmtTime(data.cas) || '–';
+    $('vPopis').textContent = data.popis || '';
+    $('vWa').href = 'https://wa.me/?text=' + encodeURIComponent(message(data));
+    komu.value = data.komu || ''; cas.value = data.cas || ''; popis.value = data.popis || '';
+  } else {
+    $('title').textContent = 'Rychlá zpráva';
+    $('subtitle').textContent = 'Vyplň komu, kdy a co. Pošli přes WhatsApp, nebo sdílej odkaz.';
+    if (!cas.value) {
+      const d = new Date(Date.now() + 3600e3); d.setMinutes(0, 0, 0);
+      cas.value = new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
+    }
+  }
+  refresh();
+}
+window.addEventListener('hashchange', render);
+render();
+</script>
+</body>
+</html>
