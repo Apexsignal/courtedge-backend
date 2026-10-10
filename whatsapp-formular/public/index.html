@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rychlá zpráva</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: jeden sloupec – formulář, pak seznamy po dnech (dnes, další dny, archiv) */
+:root {
+  --bg: #eef2ef; --card: #ffffff; --fg: #17221c; --muted: #5d6b63;
+  --line: #d3ddd7; --accent: #1f7a4d; --accent-fg: #ffffff; --bubble: #dcf3e3; --danger: #b3261e;
+  --display: "Fraunces", Georgia, serif;
+  --body: "Atkinson Hyperlegible", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111815; --card: #1a231f; --fg: #e6eee9; --muted: #9aaba1;
+  --line: #2c3a33; --accent: #3fb47a; --accent-fg: #0c1410; --bubble: #1f3a2b; --danger: #f2827a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111815; --card: #1a231f; --fg: #e6eee9; --muted: #9aaba1;
+  --line: #2c3a33; --accent: #3fb47a; --accent-fg: #0c1410; --bubble: #1f3a2b; --danger: #f2827a; color-scheme: dark }
+* { box-sizing: border-box }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 var(--body);
+  padding: 32px 16px calc(32px + env(safe-area-inset-bottom, 0px)); }
+main { max-width: 560px; margin: 0 auto; display: grid; gap: 24px }
+h1 { font: 600 2rem/1.1 var(--display); margin: 0; text-wrap: balance }
+h2 { font: 600 1.3rem/1.2 var(--display); margin: 0 }
+.sub { color: var(--muted); margin: 6px 0 0 }
+form { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: grid; gap: 16px }
+label { display: grid; gap: 6px; font-weight: 700; font-size: .9rem }
+label span { font-weight: 400; color: var(--muted) }
+input, textarea { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 10px; padding: 11px 12px; width: 100% }
+textarea { min-height: 100px; resize: vertical }
+input:focus, textarea:focus, button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.row { display: flex; flex-wrap: wrap; gap: 10px }
+button, .btn { font: 700 1rem var(--body); border-radius: 10px; padding: 12px 16px; cursor: pointer;
+  border: 1px solid var(--accent); text-decoration: none; text-align: center; flex: 1 1 180px }
+.primary { background: var(--accent); color: var(--accent-fg) }
+.ghost { background: transparent; color: var(--accent) }
+button:disabled { opacity: .6; cursor: wait }
+#toast { min-height: 1.4em; font-size: .9rem; color: var(--accent); margin: 0 }
+#toast.err { color: var(--danger) }
+
+.day { display: grid; gap: 10px }
+.dayhead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap }
+.count { color: var(--muted); font-size: .9rem }
+.link { background: none; border: 0; padding: 0; color: var(--accent); font: 700 .9rem var(--body); cursor: pointer; flex: none }
+.item { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 8px }
+.meta { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap }
+.time { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--accent) }
+.who { font-weight: 700; overflow-wrap: anywhere }
+.text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 }
+.actions { display: flex; gap: 16px; flex-wrap: wrap }
+.actions a, .actions button { background: none; border: 0; padding: 0; font: 700 .9rem var(--body); cursor: pointer; flex: none; text-decoration: none }
+.actions a { color: var(--accent) }
+.actions .del { color: var(--danger) }
+.empty { color: var(--muted); margin: 0 }
+details.arch { border-top: 1px solid var(--line); padding-top: 14px }
+details.arch > summary { cursor: pointer; font: 600 1.3rem/1.2 var(--display) }
+details.arch .days { display: grid; gap: 18px; margin-top: 16px }
+details.past > summary { cursor: pointer; font-weight: 700 }
+details.past > summary .dayhead { display: inline-flex; width: calc(100% - 1.5em); vertical-align: middle }
+details.past[open] > summary { margin-bottom: 10px }
+details.past .list { display: grid; gap: 10px }
+.k { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Rychlá zpráva</h1>
+    <p class="sub">Zapiš komu, kdy a co. Každá zpráva se uloží do seznamu svého dne a uvidí ji každý, kdo má odkaz.</p>
+  </header>
+
+  <form id="form" autocomplete="off">
+    <label for="komu">Komu <span>telefonní číslo (např. +420 777 123 456) nebo jméno</span>
+      <input id="komu" required maxlength="120" placeholder="+420 777 123 456 nebo Petr">
+    </label>
+    <label for="cas">Čas
+      <input id="cas" type="datetime-local" required>
+    </label>
+    <label for="popis">Popisek
+      <textarea id="popis" required maxlength="2000" placeholder="Např. Trénink na kurtu č. 3, vezmi míče."></textarea>
+    </label>
+    <div class="row">
+      <button type="submit" class="primary" id="save">Uložit</button>
+      <button type="button" class="ghost" id="saveWa">Uložit a poslat přes WhatsApp</button>
+    </div>
+    <p id="toast" role="status"></p>
+  </form>
+
+  <section id="today" class="day" aria-live="polite"></section>
+  <div id="upcoming" class="day" hidden></div>
+  <details class="arch" id="archive" hidden>
+    <summary>Předchozí dny</summary>
+    <div class="days" id="archiveDays"></div>
+  </details>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const komu = $('komu'), cas = $('cas'), popis = $('popis');
+let items = [];
+
+const pad = n => String(n).padStart(2, '0');
+const dayKey = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const todayKey = () => dayKey(new Date());
+
+// Čísla: odstraní mezery a "+", převede 00420 → 420; 9 číslic bez předvolby → +420
+function phoneDigits(v) {
+  const s = (v || '').trim();
+  if (!/^[+\d][\d\s().-]{5,}$/.test(s)) return null;
+  let d = s.replace(/\D/g, '');
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.length === 9) d = '420' + d;
+  return d.length >= 10 ? d : null;
+}
+function fmtDay(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const diff = Math.round((date - t) / 864e5);
+  const label = date.toLocaleDateString('cs-CZ', { weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric' });
+  if (diff === 0) return 'Dnes · ' + label;
+  if (diff === 1) return 'Zítra · ' + label;
+  if (diff === -1) return 'Včera · ' + label;
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+const fmtTime = v => v ? v.slice(11, 16) : '';
+function fmtFull(v) {
+  const d = new Date(v);
+  return isNaN(d) ? v : d.toLocaleString('cs-CZ', { weekday: 'short', day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+function message(it) {
+  const lines = [];
+  if (it.komu && !phoneDigits(it.komu)) lines.push('Ahoj ' + it.komu + ',');
+  lines.push('🕒 ' + fmtFull(it.cas));
+  lines.push(it.popis);
+  return lines.join('\n');
+}
+const waLink = it => 'https://wa.me/' + (phoneDigits(it.komu) || '') + '?text=' + encodeURIComponent(message(it));
+const countLabel = n => n + ' ' + (n === 1 ? 'zpráva' : n >= 2 && n <= 4 ? 'zprávy' : 'zpráv');
+
+function toast(text, err) { $('toast').textContent = text; $('toast').className = err ? 'err' : ''; }
+
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) k === 'class' ? e.className = v : e.setAttribute(k, v);
+  for (const k of kids) e.append(k);
+  return e;
+}
+function itemCard(it) {
+  const del = el('button', { class: 'del', type: 'button' }, 'Smazat');
+  del.addEventListener('click', () => removeItem(it, del));
+  return el('article', { class: 'item' },
+    el('div', { class: 'meta' }, el('span', { class: 'time' }, fmtTime(it.cas)), el('span', { class: 'who' }, it.komu)),
+    el('p', { class: 'text' }, it.popis),
+    el('div', { class: 'actions' },
+      el('a', { href: waLink(it), target: '_blank', rel: 'noopener' }, 'Poslat přes WhatsApp'),
+      del));
+}
+function shareButton(key) {
+  const b = el('button', { class: 'link', type: 'button' }, 'Sdílet den');
+  b.addEventListener('click', async () => {
+    const url = location.origin + location.pathname + '?den=' + key;
+    try { await navigator.clipboard.writeText(url); toast('Odkaz na den zkopírován.'); }
+    catch { window.prompt('Zkopíruj odkaz:', url); }
+  });
+  return b;
+}
+function dayBlock(key, list, headTag) {
+  const head = el('div', { class: 'dayhead' },
+    el(headTag, {}, fmtDay(key)),
+    el('span', { class: 'count' }, countLabel(list.length)));
+  head.append(shareButton(key));
+  const box = el('div', { class: 'list day', id: 'den-' + key }, ...list.map(itemCard));
+  return [head, box];
+}
+
+function render() {
+  const today = todayKey();
+  const byDay = {};
+  for (const it of items) (byDay[it.cas.slice(0, 10)] ||= []).push(it);
+  for (const k in byDay) byDay[k].sort((a, b) => a.cas.localeCompare(b.cas));
+
+  // Dnes – vždy nahoře, i když je prázdný
+  const t = $('today'); t.replaceChildren();
+  const todays = byDay[today] || [];
+  t.append(...dayBlock(today, todays, 'h2'));
+  if (!todays.length) t.append(el('p', { class: 'empty' }, 'Na dnešek zatím nic. Přidej první zprávu formulářem nahoře.'));
+
+  // Další dny
+  const up = Object.keys(byDay).filter(k => k > today).sort();
+  const u = $('upcoming'); u.replaceChildren(); u.hidden = !up.length;
+  if (up.length) u.append(el('div', { class: 'k' }, 'Další dny'));
+  for (const k of up) u.append(...dayBlock(k, byDay[k], 'h2'));
+
+  // Archiv – předchozí dny, nejnovější první, každý den sbalitelný
+  const past = Object.keys(byDay).filter(k => k < today).sort().reverse();
+  const a = $('archiveDays'); a.replaceChildren(); $('archive').hidden = !past.length;
+  $('archive').querySelector('summary').textContent = 'Předchozí dny (' + past.length + ')';
+  const want = new URLSearchParams(location.search).get('den');
+  for (const k of past) {
+    const d = el('details', { class: 'past' });
+    const [head, box] = dayBlock(k, byDay[k], 'span');
+    d.append(el('summary', {}, head), box);
+    if (k === want) { d.open = true; $('archive').open = true; }
+    a.append(d);
+  }
+  if (want) document.getElementById('den-' + want)?.scrollIntoView({ block: 'start' });
+}
+
+async function load() {
+  try {
+    const r = await fetch('/api/zpravy', { cache: 'no-store' });
+    if (!r.ok) throw new Error(await r.text());
+    items = await r.json();
+    render();
+  } catch (e) { toast('Zprávy se nepodařilo načíst. Zkus obnovit stránku.', true); render(); }
+}
+
+async function save(sendWa) {
+  if (!$('form').reportValidity()) return;
+  const data = { komu: komu.value.trim(), cas: cas.value, popis: popis.value.trim() };
+  // Okno pro WhatsApp otevřít hned v kliknutí, jinak ho prohlížeč zablokuje
+  const win = sendWa ? window.open('about:blank', '_blank') : null;
+  $('save').disabled = $('saveWa').disabled = true;
+  try {
+    const r = await fetch('/api/zpravy', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) });
+    if (!r.ok) throw new Error(await r.text());
+    const it = await r.json();
+    items.push(it);
+    if (win) win.location = waLink(it);
+    popis.value = '';
+    toast('Uloženo: ' + fmtDay(it.cas.slice(0, 10)) + '.');
+    render();
+  } catch (e) {
+    win?.close();
+    toast('Uložení se nepovedlo: ' + (e.message || 'zkus to znovu.'), true);
+  } finally { $('save').disabled = $('saveWa').disabled = false; }
+}
+async function removeItem(it, btn) {
+  if (btn.dataset.confirm !== '1') { btn.dataset.confirm = '1'; btn.textContent = 'Opravdu smazat?'; return; }
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/zpravy?key=' + encodeURIComponent(it.key), { method: 'DELETE' });
+    if (!r.ok) throw new Error();
+    items = items.filter(x => x.key !== it.key);
+    render();
+  } catch { btn.disabled = false; toast('Smazání se nepovedlo.', true); }
+}
+
+$('form').addEventListener('submit', e => { e.preventDefault(); save(false); });
+$('saveWa').addEventListener('click', () => save(true));
+
+const d = new Date(Date.now() + 3600e3); d.setMinutes(0, 0, 0);
+cas.value = dayKey(d) + 'T' + pad(d.getHours()) + ':00';
+
+// O půlnoci se seznam sám přeskupí – dnešek se přesune do archivu
+let lastDay = todayKey();
+setInterval(() => { if (todayKey() !== lastDay) { lastDay = todayKey(); render(); } }, 60e3);
+// Ostatní vidí nové zprávy bez obnovení
+setInterval(() => { if (!document.hidden) load(); }, 30e3);
+load();
+</script>
+</body>
+</html>
