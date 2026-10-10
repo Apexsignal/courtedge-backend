@@ -65,6 +65,25 @@ details.past > summary { cursor: pointer; font-weight: 700 }
 details.past > summary .dayhead { display: inline-flex; width: calc(100% - 1.5em); vertical-align: middle }
 details.past[open] > summary { margin-bottom: 10px }
 details.past .list { display: grid; gap: 10px }
+.cal { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 10px }
+.calhead { display: flex; align-items: center; gap: 8px }
+.calhead h2 { flex: 1; text-align: center; text-transform: capitalize }
+.nav { flex: none; width: 40px; height: 40px; padding: 0; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--fg); font-size: 1.2rem }
+.grid7 { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px }
+.wd { text-align: center; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding-block: 2px }
+.cd { position: relative; aspect-ratio: 1; max-width: 100%; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--fg);
+  font: 700 1rem var(--body); font-variant-numeric: tabular-nums; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; line-height: 1 }
+.cd:hover { border-color: var(--line) }
+.cd.out { color: var(--muted); opacity: .45 }
+.cd.today { border-color: var(--accent) }
+.cd.sel { background: var(--accent); color: var(--accent-fg); border-color: var(--accent) }
+.cd .dot { min-width: 15px; height: 15px; border-radius: 999px; padding: 0 4px;
+  background: var(--accent); color: var(--accent-fg); font-size: .62rem; line-height: 15px }
+.cd.sel .dot { background: var(--accent-fg); color: var(--accent) }
+.calfoot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap }
+.dayline { display: flex; gap: 12px; flex-wrap: wrap; align-items: end }
+.dayline > label:first-child { flex: 2 1 200px } .dayline > label:last-child { flex: 1 1 120px }
+#denText { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; text-align: left; cursor: pointer; width: 100%; font-weight: 400 }
 .k { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
 </style>
 </head>
@@ -72,16 +91,34 @@ details.past .list { display: grid; gap: 10px }
 <main>
   <header>
     <h1>Rychlá zpráva</h1>
-    <p class="sub">Zapiš komu, kdy a co. Každá zpráva se uloží do seznamu svého dne a uvidí ji každý, kdo má odkaz.</p>
+    <p class="sub">V kalendáři vyber den, zapiš komu, kdy a co. Každá zpráva se uloží do seznamu svého dne a uvidí ji každý, kdo má odkaz.</p>
   </header>
+
+  <section class="cal" aria-label="Kalendář">
+    <div class="calhead">
+      <button type="button" class="nav" id="prev" aria-label="Předchozí měsíc">‹</button>
+      <h2 id="month"></h2>
+      <button type="button" class="nav" id="next" aria-label="Další měsíc">›</button>
+    </div>
+    <div class="grid7" id="cal"></div>
+    <div class="calfoot">
+      <button type="button" class="link" id="goToday">Dnes</button>
+      <button type="button" class="link" id="goTomorrow">Přidat na další den →</button>
+    </div>
+  </section>
 
   <form id="form" autocomplete="off">
     <label for="komu">Komu <span>telefonní číslo (např. +420 777 123 456) nebo jméno</span>
       <input id="komu" required maxlength="120" placeholder="+420 777 123 456 nebo Petr">
     </label>
-    <label for="cas">Čas
-      <input id="cas" type="datetime-local" required>
-    </label>
+    <div class="dayline">
+      <label for="denText">Den <span>vyber v kalendáři</span>
+        <button type="button" id="denText"></button>
+      </label>
+      <label for="cas">Čas
+        <input id="cas" type="time" required>
+      </label>
+    </div>
     <label for="popis">Popisek
       <textarea id="popis" required maxlength="2000" placeholder="Např. Trénink na kurtu č. 3, vezmi míče."></textarea>
     </label>
@@ -104,6 +141,7 @@ details.past .list { display: grid; gap: 10px }
 const $ = id => document.getElementById(id);
 const komu = $('komu'), cas = $('cas'), popis = $('popis');
 let items = [];
+let selected = null, viewMonth = null;
 
 const pad = n => String(n).padStart(2, '0');
 const dayKey = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
@@ -186,20 +224,23 @@ function render() {
   for (const it of items) (byDay[it.cas.slice(0, 10)] ||= []).push(it);
   for (const k in byDay) byDay[k].sort((a, b) => a.cas.localeCompare(b.cas));
 
-  // Dnes – vždy nahoře, i když je prázdný
+  renderCalendar(byDay);
+  $('denText').textContent = fmtDay(selected);
+
+  // Vybraný den z kalendáře – vždy nahoře, i když je prázdný
   const t = $('today'); t.replaceChildren();
-  const todays = byDay[today] || [];
-  t.append(...dayBlock(today, todays, 'h2'));
-  if (!todays.length) t.append(el('p', { class: 'empty' }, 'Na dnešek zatím nic. Přidej první zprávu formulářem nahoře.'));
+  const sel = byDay[selected] || [];
+  t.append(...dayBlock(selected, sel, 'h2'));
+  if (!sel.length) t.append(el('p', { class: 'empty' }, 'Na tento den zatím nic. Přidej první zprávu formulářem nahoře.'));
 
   // Další dny
-  const up = Object.keys(byDay).filter(k => k > today).sort();
+  const up = Object.keys(byDay).filter(k => k >= today && k !== selected).sort();
   const u = $('upcoming'); u.replaceChildren(); u.hidden = !up.length;
-  if (up.length) u.append(el('div', { class: 'k' }, 'Další dny'));
+  if (up.length) u.append(el('div', { class: 'k' }, 'Ostatní dny'));
   for (const k of up) u.append(...dayBlock(k, byDay[k], 'h2'));
 
   // Archiv – předchozí dny, nejnovější první, každý den sbalitelný
-  const past = Object.keys(byDay).filter(k => k < today).sort().reverse();
+  const past = Object.keys(byDay).filter(k => k < today && k !== selected).sort().reverse();
   const a = $('archiveDays'); a.replaceChildren(); $('archive').hidden = !past.length;
   $('archive').querySelector('summary').textContent = 'Předchozí dny (' + past.length + ')';
   const want = new URLSearchParams(location.search).get('den');
@@ -207,10 +248,45 @@ function render() {
     const d = el('details', { class: 'past' });
     const [head, box] = dayBlock(k, byDay[k], 'span');
     d.append(el('summary', {}, head), box);
-    if (k === want) { d.open = true; $('archive').open = true; }
     a.append(d);
   }
-  if (want) document.getElementById('den-' + want)?.scrollIntoView({ block: 'start' });
+}
+
+function renderCalendar(byDay) {
+  const [y, m] = viewMonth;
+  const first = new Date(y, m, 1);
+  $('month').textContent = first.toLocaleDateString('cs-CZ', { month: 'long', year: 'numeric' });
+  const start = new Date(y, m, 1 - ((first.getDay() + 6) % 7)); // od pondělí
+  const today = todayKey();
+  const cells = ['Po', 'Út', 'St', 'Čt', 'Pá', 'So', 'Ne'].map(w => el('div', { class: 'wd' }, w));
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    if (i === 35 && d.getMonth() !== m) break;
+    const key = dayKey(d), n = (byDay[key] || []).length;
+    const cls = ['cd'];
+    if (d.getMonth() !== m) cls.push('out');
+    if (key === today) cls.push('today');
+    if (key === selected) cls.push('sel');
+    const b = el('button', { type: 'button', class: cls.join(' '), 'aria-label': fmtDay(key) + (n ? ', ' + countLabel(n) : ''), 'aria-pressed': String(key === selected) },
+      String(d.getDate()), ...(n ? [el('span', { class: 'dot' }, String(n))] : []));
+    b.addEventListener('click', () => selectDay(key));
+    cells.push(b);
+  }
+  $('cal').replaceChildren(...cells);
+}
+
+function selectDay(key, scroll) {
+  selected = key;
+  const [y, m] = key.split('-').map(Number);
+  viewMonth = [y, m - 1];
+  history.replaceState(null, '', key === todayKey() ? location.pathname : '?den=' + key);
+  render();
+  if (scroll) $('form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function shiftMonth(delta) {
+  const d = new Date(viewMonth[0], viewMonth[1] + delta, 1);
+  viewMonth = [d.getFullYear(), d.getMonth()];
+  render();
 }
 
 async function load() {
@@ -224,7 +300,7 @@ async function load() {
 
 async function save(sendWa) {
   if (!$('form').reportValidity()) return;
-  const data = { komu: komu.value.trim(), cas: cas.value, popis: popis.value.trim() };
+  const data = { komu: komu.value.trim(), cas: selected + 'T' + cas.value, popis: popis.value.trim() };
   // Okno pro WhatsApp otevřít hned v kliknutí, jinak ho prohlížeč zablokuje
   const win = sendWa ? window.open('about:blank', '_blank') : null;
   $('save').disabled = $('saveWa').disabled = true;
@@ -256,12 +332,26 @@ async function removeItem(it, btn) {
 $('form').addEventListener('submit', e => { e.preventDefault(); save(false); });
 $('saveWa').addEventListener('click', () => save(true));
 
-const d = new Date(Date.now() + 3600e3); d.setMinutes(0, 0, 0);
-cas.value = dayKey(d) + 'T' + pad(d.getHours()) + ':00';
+$('prev').addEventListener('click', () => shiftMonth(-1));
+$('next').addEventListener('click', () => shiftMonth(1));
+$('goToday').addEventListener('click', () => selectDay(todayKey()));
+$('goTomorrow').addEventListener('click', () => {
+  const [y, m, d] = selected.split('-').map(Number);
+  selectDay(dayKey(new Date(y, m - 1, d + 1)), true);
+});
+$('denText').addEventListener('click', () => document.querySelector('.cal').scrollIntoView({ behavior: 'smooth' }));
+
+const want = new URLSearchParams(location.search).get('den');
+selectDay(/^\d{4}-\d{2}-\d{2}$/.test(want || '') ? want : todayKey());
+cas.value = pad((new Date().getHours() + 1) % 24) + ':00';
 
 // O půlnoci se seznam sám přeskupí – dnešek se přesune do archivu
 let lastDay = todayKey();
-setInterval(() => { if (todayKey() !== lastDay) { lastDay = todayKey(); render(); } }, 60e3);
+setInterval(() => {
+  if (todayKey() === lastDay) return;
+  if (selected === lastDay) selected = todayKey();
+  lastDay = todayKey(); render();
+}, 60e3);
 // Ostatní vidí nové zprávy bez obnovení
 setInterval(() => { if (!document.hidden) load(); }, 30e3);
 load();
