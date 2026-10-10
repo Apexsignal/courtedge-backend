@@ -65,18 +65,6 @@ details.past > summary { cursor: pointer; font-weight: 700 }
 details.past > summary .dayhead { display: inline-flex; width: calc(100% - 1.5em); vertical-align: middle }
 details.past[open] > summary { margin-bottom: 10px }
 details.past .list { display: grid; gap: 10px }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px }
-select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; width: 100% }
-select:focus { outline: 2px solid var(--accent); outline-offset: 2px }
-.total { display: grid; gap: 6px; font-weight: 700; font-size: .9rem }
-.total output { font: 600 1.4rem/1.6 var(--display); font-variant-numeric: tabular-nums; color: var(--accent); padding-block: 4px }
-input[type=number] { font-variant-numeric: tabular-nums }
-.tag { font-size: .8rem; font-weight: 700; border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; color: var(--muted) }
-.price { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap }
-.price small { font-weight: 400; color: var(--muted) }
-.sum { background: var(--bubble); border-radius: 12px; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 4px 20px; align-items: baseline; font-variant-numeric: tabular-nums }
-.sum strong { font: 600 1.25rem var(--display); margin-left: auto }
-.sum span { color: var(--muted); font-size: .9rem }
 .k { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted) }
 </style>
 </head>
@@ -84,7 +72,7 @@ input[type=number] { font-variant-numeric: tabular-nums }
 <main>
   <header>
     <h1>Rychlá zpráva</h1>
-    <p class="sub">Zapiš komu, kdy, na jak dlouho a za kolik. Každá zpráva se uloží do seznamu svého dne a uvidí ji každý, kdo má odkaz.</p>
+    <p class="sub">Zapiš komu, kdy a co. Každá zpráva se uloží do seznamu svého dne a uvidí ji každý, kdo má odkaz.</p>
   </header>
 
   <form id="form" autocomplete="off">
@@ -94,32 +82,8 @@ input[type=number] { font-variant-numeric: tabular-nums }
     <label for="cas">Čas
       <input id="cas" type="datetime-local" required>
     </label>
-    <div class="grid">
-      <label for="delka">Na jak dlouho
-        <select id="delka" required>
-          <option value="60">60 min</option>
-          <option value="90">90 min</option>
-          <option value="120">120 min</option>
-        </select>
-      </label>
-      <label for="sluzba">Služba
-        <select id="sluzba" required>
-          <option value="T">T</option>
-          <option value="N">N</option>
-        </select>
-      </label>
-    </div>
-    <div class="grid">
-      <label for="cena">Cena (Kč)
-        <input id="cena" type="number" inputmode="decimal" step="any" min="0" placeholder="0">
-      </label>
-      <label for="dop">DOP (Kč)
-        <input id="dop" type="number" inputmode="decimal" step="any" placeholder="0">
-      </label>
-      <div class="total">Celkem<output id="celkem" for="cena dop">0 Kč</output></div>
-    </div>
-    <label for="popis">Popisek <span>nepovinné</span>
-      <textarea id="popis" maxlength="2000" placeholder="Např. Trénink na kurtu č. 3, vezmi míče."></textarea>
+    <label for="popis">Popisek
+      <textarea id="popis" required maxlength="2000" placeholder="Např. Trénink na kurtu č. 3, vezmi míče."></textarea>
     </label>
     <div class="row">
       <button type="submit" class="primary" id="save">Uložit</button>
@@ -139,12 +103,6 @@ input[type=number] { font-variant-numeric: tabular-nums }
 <script>
 const $ = id => document.getElementById(id);
 const komu = $('komu'), cas = $('cas'), popis = $('popis');
-const delka = $('delka'), sluzba = $('sluzba'), cena = $('cena'), dop = $('dop');
-const num = v => { const n = parseFloat(String(v ?? '').replace(',', '.')); return Number.isFinite(n) ? n : 0; };
-const kc = n => n.toLocaleString('cs-CZ', { maximumFractionDigits: 2 }) + ' Kč';
-const total = it => num(it.cena) + num(it.dop);
-const updateTotal = () => { $('celkem').textContent = kc(num(cena.value) + num(dop.value)); };
-[cena, dop].forEach(el => el.addEventListener('input', updateTotal));
 let items = [];
 
 const pad = n => String(n).padStart(2, '0');
@@ -179,10 +137,8 @@ function fmtFull(v) {
 function message(it) {
   const lines = [];
   if (it.komu && !phoneDigits(it.komu)) lines.push('Ahoj ' + it.komu + ',');
-  lines.push('🕒 ' + fmtFull(it.cas) + (it.delka ? ' · ' + it.delka + ' min' : ''));
-  if (it.sluzba) lines.push('Služba: ' + it.sluzba);
-  if (total(it)) lines.push('Cena: ' + kc(total(it)));
-  if (it.popis) lines.push(it.popis);
+  lines.push('🕒 ' + fmtFull(it.cas));
+  lines.push(it.popis);
   return lines.join('\n');
 }
 const waLink = it => 'https://wa.me/' + (phoneDigits(it.komu) || '') + '?text=' + encodeURIComponent(message(it));
@@ -200,14 +156,8 @@ function itemCard(it) {
   const del = el('button', { class: 'del', type: 'button' }, 'Smazat');
   del.addEventListener('click', () => removeItem(it, del));
   return el('article', { class: 'item' },
-    el('div', { class: 'meta' },
-      el('span', { class: 'time' }, fmtTime(it.cas)),
-      el('span', { class: 'who' }, it.komu),
-      ...(it.delka ? [el('span', { class: 'tag' }, it.delka + ' min')] : []),
-      ...(it.sluzba ? [el('span', { class: 'tag' }, it.sluzba)] : []),
-      el('span', { class: 'price' }, kc(total(it)),
-        ...(num(it.dop) ? [el('small', {}, ' (' + kc(num(it.cena)) + ' + DOP ' + kc(num(it.dop)) + ')')] : []))),
-    ...(it.popis ? [el('p', { class: 'text' }, it.popis)] : []),
+    el('div', { class: 'meta' }, el('span', { class: 'time' }, fmtTime(it.cas)), el('span', { class: 'who' }, it.komu)),
+    el('p', { class: 'text' }, it.popis),
     el('div', { class: 'actions' },
       el('a', { href: waLink(it), target: '_blank', rel: 'noopener' }, 'Poslat přes WhatsApp'),
       del));
@@ -227,16 +177,6 @@ function dayBlock(key, list, headTag) {
     el('span', { class: 'count' }, countLabel(list.length)));
   head.append(shareButton(key));
   const box = el('div', { class: 'list day', id: 'den-' + key }, ...list.map(itemCard));
-  if (list.length) {
-    const sc = list.reduce((a, it) => a + num(it.cena), 0);
-    const sd = list.reduce((a, it) => a + num(it.dop), 0);
-    const mins = list.reduce((a, it) => a + (Number(it.delka) || 0), 0);
-    const t = list.filter(it => it.sluzba === 'T').length, n = list.filter(it => it.sluzba === 'N').length;
-    box.append(el('div', { class: 'sum' },
-      el('span', {}, 'Cena ' + kc(sc) + ' + DOP ' + kc(sd)),
-      el('span', {}, (mins / 60).toLocaleString('cs-CZ', { maximumFractionDigits: 1 }) + ' h · T ' + t + '× · N ' + n + '×'),
-      el('strong', {}, 'Celkem za den ' + kc(sc + sd))));
-  }
   return [head, box];
 }
 
@@ -284,7 +224,7 @@ async function load() {
 
 async function save(sendWa) {
   if (!$('form').reportValidity()) return;
-  const data = { komu: komu.value.trim(), cas: cas.value, popis: popis.value.trim(), delka: Number(delka.value), sluzba: sluzba.value, cena: num(cena.value), dop: num(dop.value) };
+  const data = { komu: komu.value.trim(), cas: cas.value, popis: popis.value.trim() };
   // Okno pro WhatsApp otevřít hned v kliknutí, jinak ho prohlížeč zablokuje
   const win = sendWa ? window.open('about:blank', '_blank') : null;
   $('save').disabled = $('saveWa').disabled = true;
@@ -294,7 +234,7 @@ async function save(sendWa) {
     const it = await r.json();
     items.push(it);
     if (win) win.location = waLink(it);
-    popis.value = ''; cena.value = ''; dop.value = ''; updateTotal();
+    popis.value = '';
     toast('Uloženo: ' + fmtDay(it.cas.slice(0, 10)) + '.');
     render();
   } catch (e) {
